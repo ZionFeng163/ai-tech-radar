@@ -71,3 +71,14 @@ make test
 docker compose exec backend alembic upgrade head
 docker compose exec backend alembic current
 ```
+
+## arXiv 采集样例
+
+采集最多 3 篇论文并幂等写入 `RawItem`：
+
+```bash
+docker compose exec backend python -m app.sources.arxiv.sample --limit 3 --persist
+```
+
+分类、关键词、时间窗口、分页、限流、重试和增量游标的详细说明见
+[`backend/docs/arxiv-collector.md`](backend/docs/arxiv-collector.md)。

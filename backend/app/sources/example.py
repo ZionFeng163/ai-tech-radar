@@ -1,5 +1,7 @@
 from collections.abc import Sequence
 
+from pydantic import AnyHttpUrl
+
 from app.domain import SourceKind
 from app.sources.base import (
     AdapterCursor,
@@ -18,7 +20,7 @@ class ExampleSourceAdapter(SourceAdapter):
         slug="example",
         name="Example source",
         kind=SourceKind.OTHER,
-        base_url="https://example.com",
+        base_url=AnyHttpUrl("https://example.com"),
     )
 
     def __init__(self, records: Sequence[NormalizedItem]) -> None:
