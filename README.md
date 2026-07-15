@@ -62,3 +62,12 @@ make test
 ## 配置
 
 本地配置从 `.env` 读取，所有可用变量及开发默认值见 `.env.example`。不要提交真实密钥或本地 `.env`。
+
+## 数据模型与迁移
+
+所有来源数据先写入 `RawItem`，再规范化为 `Article`。同一来源下的稳定外部 ID 具有唯一约束，来源特有字段保存在 JSONB 中。详细设计见 [`backend/docs/data-model.md`](backend/docs/data-model.md)。
+
+```bash
+docker compose exec backend alembic upgrade head
+docker compose exec backend alembic current
+```
