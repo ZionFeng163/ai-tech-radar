@@ -1,0 +1,35 @@
+{
+  "name": "ai-tech-radar-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.30.0",
+    "eslint-config-next": "^15.5.0",
+    "jsdom": "^26.1.0",
+    "picomatch": "4.0.3",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  },
+  "overrides": {
+    "picomatch": "$picomatch",
+    "postcss": "8.5.19"
+  }
+}
