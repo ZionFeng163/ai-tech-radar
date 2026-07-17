@@ -1,0 +1,14 @@
+{
+  "resource_types": ["model", "dataset"],
+  "model_tasks": [
+    "text-generation",
+    "image-text-to-text",
+    "automatic-speech-recognition"
+  ],
+  "dataset_filters": [],
+  "authors": [],
+  "organizations": [],
+  "initial_window_hours": 168,
+  "overlap_seconds": 300,
+  "page_size": 30
+}

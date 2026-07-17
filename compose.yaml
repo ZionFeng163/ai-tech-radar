@@ -37,6 +37,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://radar:radar@postgres:5432/radar}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      HF_TOKEN: ${HF_TOKEN:-}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:

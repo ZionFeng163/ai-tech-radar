@@ -1,0 +1,27 @@
+[
+  {
+    "_id": "dataset-object-id",
+    "id": "acme/radar-events",
+    "author": "acme",
+    "cardData": {
+      "pretty_name": "Radar Events",
+      "description": "Curated AI technology events for evaluation.",
+      "task_categories": ["text-classification"],
+      "license": ["cc-by-4.0", "mit"]
+    },
+    "disabled": false,
+    "gated": false,
+    "lastModified": "2026-07-17T02:30:00.000Z",
+    "likes": 12,
+    "private": false,
+    "sha": "def456",
+    "description": "A structured dataset of AI technology events.",
+    "downloads": 4096,
+    "tags": [
+      "task_categories:text-classification",
+      "license:cc-by-4.0",
+      "language:en"
+    ],
+    "createdAt": "2026-07-15T01:00:00.000Z"
+  }
+]

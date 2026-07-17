@@ -94,3 +94,15 @@ docker compose exec backend python -m app.sources.github_releases.sample --limit
 设置 `GITHUB_TOKEN` 可使用认证额度；未设置时自动降级为公开仓库匿名访问。仓库、组织、
 主题发现、ETag 游标和限流策略见
 [`backend/docs/github-releases-collector.md`](backend/docs/github-releases-collector.md)。
+
+## Hugging Face 采集样例
+
+采集近期更新的模型和数据集并幂等写入 `RawItem`：
+
+```bash
+docker compose exec backend python -m app.sources.hugging_face.sample --limit 3 --persist
+```
+
+默认支持 `text-generation`、`image-text-to-text`、`automatic-speech-recognition`，并可按
+作者、组织和数据集标签筛选。设置 `HF_TOKEN` 可使用认证请求；详细游标、限流和异常隔离
+规则见 [`backend/docs/hugging-face-collector.md`](backend/docs/hugging-face-collector.md)。
