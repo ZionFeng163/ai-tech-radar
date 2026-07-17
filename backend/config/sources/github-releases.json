@@ -1,0 +1,19 @@
+{
+  "repositories": [
+    "huggingface/transformers",
+    "pytorch/pytorch",
+    "tensorflow/tensorflow",
+    "keras-team/keras",
+    "Lightning-AI/pytorch-lightning",
+    "vllm-project/vllm",
+    "ollama/ollama",
+    "langchain-ai/langchain",
+    "openai/openai-python",
+    "scikit-learn/scikit-learn"
+  ],
+  "organizations": [],
+  "topics": [],
+  "page_size": 30,
+  "include_drafts": false,
+  "include_prereleases": true
+}

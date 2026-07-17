@@ -82,3 +82,15 @@ docker compose exec backend python -m app.sources.arxiv.sample --limit 3 --persi
 
 分类、关键词、时间窗口、分页、限流、重试和增量游标的详细说明见
 [`backend/docs/arxiv-collector.md`](backend/docs/arxiv-collector.md)。
+
+## GitHub Releases 采集样例
+
+默认配置包含 10 个 AI 项目仓库。以下命令匿名采集最多 3 条 Release 并幂等写入：
+
+```bash
+docker compose exec backend python -m app.sources.github_releases.sample --limit 3 --persist
+```
+
+设置 `GITHUB_TOKEN` 可使用认证额度；未设置时自动降级为公开仓库匿名访问。仓库、组织、
+主题发现、ETag 游标和限流策略见
+[`backend/docs/github-releases-collector.md`](backend/docs/github-releases-collector.md)。

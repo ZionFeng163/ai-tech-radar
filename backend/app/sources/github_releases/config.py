@@ -1,0 +1,73 @@
+import re
+from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr, field_validator
+
+REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+DEFAULT_REPOSITORIES = [
+    "huggingface/transformers",
+    "pytorch/pytorch",
+    "tensorflow/tensorflow",
+    "keras-team/keras",
+    "Lightning-AI/pytorch-lightning",
+    "vllm-project/vllm",
+    "ollama/ollama",
+    "langchain-ai/langchain",
+    "openai/openai-python",
+    "scikit-learn/scikit-learn",
+]
+
+
+class GitHubReleasesConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    api_url: HttpUrl = HttpUrl("https://api.github.com")
+    api_version: str = Field(default="2026-03-10", pattern=r"^\d{4}-\d{2}-\d{2}$")
+    token: SecretStr | None = None
+    repositories: list[str] = Field(default_factory=lambda: list(DEFAULT_REPOSITORIES))
+    organizations: list[str] = Field(default_factory=list)
+    topics: list[str] = Field(default_factory=list)
+    max_discovered_repositories: int = Field(default=25, ge=1, le=100)
+    page_size: int = Field(default=30, ge=1, le=100)
+    include_drafts: bool = False
+    include_prereleases: bool = True
+    request_interval_seconds: float = Field(default=0.2, ge=0, le=60)
+    timeout_seconds: float = Field(default=30, gt=0, le=120)
+    max_retries: int = Field(default=3, ge=0, le=10)
+    retry_backoff_seconds: float = Field(default=1, ge=0, le=60)
+    secondary_limit_wait_seconds: float = Field(default=60, ge=0, le=600)
+    max_rate_limit_wait_seconds: float = Field(default=3_600, ge=0, le=86_400)
+    user_agent: str = Field(
+        default="ai-tech-radar/0.1 (+https://github.com/ZionFeng163/ai-tech-radar)",
+        min_length=1,
+        max_length=255,
+    )
+
+    @field_validator("repositories")
+    @classmethod
+    def validate_repositories(cls, values: list[str]) -> list[str]:
+        cleaned = list(dict.fromkeys(value.strip() for value in values if value.strip()))
+        invalid = [value for value in cleaned if REPOSITORY_PATTERN.fullmatch(value) is None]
+        if invalid:
+            raise ValueError(f"invalid GitHub repositories: {', '.join(invalid)}")
+        return cleaned
+
+    @field_validator("organizations", "topics")
+    @classmethod
+    def validate_names(cls, values: list[str]) -> list[str]:
+        cleaned = list(dict.fromkeys(value.strip() for value in values if value.strip()))
+        invalid = [value for value in cleaned if NAME_PATTERN.fullmatch(value) is None]
+        if invalid:
+            raise ValueError(f"invalid GitHub names: {', '.join(invalid)}")
+        return cleaned
+
+    @classmethod
+    def from_file(cls, path: Path) -> "GitHubReleasesConfig":
+        return cls.model_validate_json(path.read_text(encoding="utf-8"))
+
+    def persisted_config(self) -> dict[str, object]:
+        values = self.model_dump(mode="json", exclude={"token"})
+        values["authentication"] = "token" if self.token else "anonymous"
+        return values

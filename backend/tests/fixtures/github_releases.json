@@ -1,0 +1,29 @@
+[
+  {
+    "id": 987654,
+    "node_id": "RE_kwDOExample",
+    "tag_name": "v1.2.0",
+    "target_commitish": "main",
+    "name": "Radar v1.2.0",
+    "body": "Adds faster inference and a safer configuration parser.",
+    "draft": false,
+    "prerelease": false,
+    "html_url": "https://github.com/acme/radar/releases/tag/v1.2.0",
+    "created_at": "2026-07-15T08:00:00Z",
+    "published_at": "2026-07-15T09:00:00Z",
+    "updated_at": "2026-07-15T09:30:00Z",
+    "author": {
+      "login": "octocat",
+      "id": 42,
+      "html_url": "https://github.com/octocat"
+    },
+    "assets": [
+      {
+        "id": 123,
+        "name": "radar.tar.gz",
+        "browser_download_url": "https://github.com/acme/radar/releases/download/v1.2.0/radar.tar.gz",
+        "download_count": 12
+      }
+    ]
+  }
+]

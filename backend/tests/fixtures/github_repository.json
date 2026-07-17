@@ -1,0 +1,19 @@
+{
+  "id": 123456,
+  "full_name": "acme/radar",
+  "html_url": "https://github.com/acme/radar",
+  "description": "An AI technology radar",
+  "stargazers_count": 2048,
+  "forks_count": 128,
+  "language": "Python",
+  "topics": ["artificial-intelligence", "machine-learning"],
+  "license": {
+    "key": "apache-2.0",
+    "name": "Apache License 2.0",
+    "spdx_id": "Apache-2.0"
+  },
+  "archived": false,
+  "visibility": "public",
+  "updated_at": "2026-07-15T09:20:00Z",
+  "pushed_at": "2026-07-15T09:10:00Z"
+}
