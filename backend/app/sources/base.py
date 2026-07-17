@@ -97,3 +97,13 @@ class SourceAdapter(ABC):
 
     def deduplication_key(self, item: CollectedItem) -> str:
         return item.deduplication_key(self.descriptor.slug)
+
+    async def aclose(self) -> None:
+        """Release adapter resources when a concrete adapter owns any."""
+        return None
+
+    async def __aenter__(self) -> "SourceAdapter":
+        return self
+
+    async def __aexit__(self, *_args: object) -> None:
+        await self.aclose()

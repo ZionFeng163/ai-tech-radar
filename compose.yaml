@@ -53,6 +53,26 @@ services:
       timeout: 3s
       retries: 10
 
+  scheduler:
+    image: ai-tech-radar-backend
+    build:
+      context: ./backend
+    command: ["python", "-m", "app.cli", "scheduler"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://radar:radar@postgres:5432/radar}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend

@@ -106,3 +106,16 @@ docker compose exec backend python -m app.sources.hugging_face.sample --limit 3 
 默认支持 `text-generation`、`image-text-to-text`、`automatic-speech-recognition`，并可按
 作者、组织和数据集标签筛选。设置 `HF_TOKEN` 可使用认证请求；详细游标、限流和异常隔离
 规则见 [`backend/docs/hugging-face-collector.md`](backend/docs/hugging-face-collector.md)。
+
+## 统一采集与定时调度
+
+手工触发任一已注册来源（`arxiv`、`github-releases`、`hugging-face`）：
+
+```bash
+docker compose exec backend python -m app.cli collect --source arxiv --limit 3
+```
+
+Compose 中的 `scheduler` 服务按 [`backend/config/schedules.json`](backend/config/schedules.json)
+自动注册 interval/cron 任务。统一运行器记录 `FetchRun` 状态和统计，使用指数退避重试，并以
+PostgreSQL 来源级 advisory lock 阻止跨进程并发。配置和运行记录查询见
+[`backend/docs/collection-scheduler.md`](backend/docs/collection-scheduler.md)。
