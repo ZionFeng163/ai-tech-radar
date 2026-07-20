@@ -7,6 +7,9 @@ from pathlib import Path
 from app.collection.registry import SourceRegistry
 from app.collection.runner import CollectionRunner
 from app.collection.scheduler import DEFAULT_SCHEDULE_PATH, serve_scheduler
+from app.processing import NormalizationPipeline, ProcessingConfig
+from app.processing.config import DEFAULT_PROCESSING_CONFIG_PATH
+from app.processing.evaluation import DEFAULT_EVALUATION_PATH, evaluate
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,6 +24,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     scheduler = subparsers.add_parser("scheduler", help="run the collection scheduler")
     scheduler.add_argument("--config", type=Path, default=DEFAULT_SCHEDULE_PATH)
+
+    normalize = subparsers.add_parser(
+        "normalize", help="normalize raw items, deduplicate articles, and cluster events"
+    )
+    normalize.add_argument("--limit", type=int, help="optional maximum number of raw items")
+    normalize.add_argument("--config", type=Path, default=DEFAULT_PROCESSING_CONFIG_PATH)
+    normalize.add_argument("--evaluate", action="store_true", help="run offline evaluation only")
+    normalize.add_argument("--evaluation-data", type=Path, default=DEFAULT_EVALUATION_PATH)
     return parser
 
 
@@ -42,8 +53,16 @@ def main() -> None:
     args = build_parser().parse_args()
     if args.command == "collect":
         asyncio.run(_collect(args))
-    else:
+    elif args.command == "scheduler":
         asyncio.run(serve_scheduler(args.config))
+    else:
+        config = ProcessingConfig.from_file(args.config)
+        result = (
+            evaluate(config, args.evaluation_data).as_dict()
+            if args.evaluate
+            else NormalizationPipeline(config).run(limit=args.limit).as_dict()
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

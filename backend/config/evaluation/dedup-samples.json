@@ -1,0 +1,40 @@
+{
+  "samples": [
+    {
+      "id": "pytorch-release",
+      "title_a": "PyTorch 3.0 released with faster distributed training",
+      "title_b": "PyTorch 3.0 release adds faster distributed training",
+      "same_event": true
+    },
+    {
+      "id": "radarlm-model",
+      "title_a": "Acme releases RadarLM 7B open model",
+      "title_b": "RadarLM 7B open model released by Acme",
+      "same_event": true
+    },
+    {
+      "id": "agent-paper",
+      "title_a": "New paper introduces memory efficient autonomous agents",
+      "title_b": "Memory efficient autonomous agents introduced in new paper",
+      "same_event": true
+    },
+    {
+      "id": "different-frameworks",
+      "title_a": "TensorFlow 3.0 release improves mobile inference",
+      "title_b": "PyTorch 3.0 release improves distributed training",
+      "same_event": false
+    },
+    {
+      "id": "different-assets",
+      "title_a": "Acme publishes RadarLM 7B language model",
+      "title_b": "Acme publishes RadarEvents image dataset",
+      "same_event": false
+    },
+    {
+      "id": "unrelated-research",
+      "title_a": "Vision transformer reaches new segmentation accuracy",
+      "title_b": "Speech dataset adds multilingual transcription labels",
+      "same_event": false
+    }
+  ]
+}

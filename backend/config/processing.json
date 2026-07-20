@@ -1,0 +1,7 @@
+{
+  "embedding_dimensions": 256,
+  "similarity_threshold": 0.6,
+  "event_window_hours": 168,
+  "candidate_limit": 250,
+  "content_characters": 0
+}

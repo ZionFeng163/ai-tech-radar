@@ -119,3 +119,15 @@ Compose 中的 `scheduler` 服务按 [`backend/config/schedules.json`](backend/c
 自动注册 interval/cron 任务。统一运行器记录 `FetchRun` 状态和统计，使用指数退避重试，并以
 PostgreSQL 来源级 advisory lock 阻止跨进程并发。配置和运行记录查询见
 [`backend/docs/collection-scheduler.md`](backend/docs/collection-scheduler.md)。
+
+## 资讯规范化、去重与事件聚类
+
+将尚未处理的 `RawItem` 转为统一 `Article`，并按精确身份和相似事件聚合：
+
+```bash
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.cli normalize
+```
+
+URL/标题规范化、身份索引、本地特征 embedding、可配置聚类阈值和离线评估说明见
+[`backend/docs/normalization-and-clustering.md`](backend/docs/normalization-and-clustering.md)。
