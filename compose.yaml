@@ -36,6 +36,7 @@ services:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://radar:radar@postgres:5432/radar}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      BRIEF_TIMEZONE: ${BRIEF_TIMEZONE:-Asia/Shanghai}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       HF_TOKEN: ${HF_TOKEN:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
