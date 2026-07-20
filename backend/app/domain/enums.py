@@ -25,3 +25,9 @@ class FetchRunStatus(StrEnum):
     SUCCESS = "success"
     PARTIAL = "partial"
     FAILED = "failed"
+
+
+class AnalysisRunStatus(StrEnum):
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"

@@ -131,3 +131,16 @@ docker compose exec backend python -m app.cli normalize
 
 URL/标题规范化、身份索引、本地特征 embedding、可配置聚类阈值和离线评估说明见
 [`backend/docs/normalization-and-clustering.md`](backend/docs/normalization-and-clustering.md)。
+
+## AI 分类、中文摘要与评分
+
+对规范化后的文章运行版本化结构分析（默认使用无需密钥的离线 Provider）：
+
+```bash
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.cli analyze --limit 10
+docker compose exec backend python -m app.cli analyze --evaluate
+```
+
+生产环境可配置 OpenAI Responses API Provider；Prompt、模型、重试、原始响应审计和 50 条人工
+评测集的说明见 [`backend/docs/ai-analysis.md`](backend/docs/ai-analysis.md)。

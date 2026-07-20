@@ -1,0 +1,13 @@
+{
+  "provider": "deterministic",
+  "model": "deterministic-v1",
+  "api_base": "https://api.openai.com/v1",
+  "api_key_env": "OPENAI_API_KEY",
+  "prompt_path": "config/prompts/article-analysis-v1.txt",
+  "prompt_version": "article-analysis-v1",
+  "max_attempts": 3,
+  "retry_backoff_seconds": 1,
+  "timeout_seconds": 60,
+  "max_input_characters": 12000,
+  "max_output_tokens": 2000
+}

@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -21,8 +22,8 @@ from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.domain import ArticleKind
-from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin, enum_values
+from app.domain import AnalysisRunStatus, ArticleKind
+from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin, enum_values, utc_now
 
 if TYPE_CHECKING:
     from app.models.source import RawItem
@@ -103,6 +104,14 @@ class Article(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text)
+    primary_category: Mapped[str | None] = mapped_column(String(100), index=True)
+    analysis_tags: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    importance_score: Mapped[float | None] = mapped_column(Float, index=True)
+    credibility_score: Mapped[float | None] = mapped_column(Float)
+    open_source_status: Mapped[str | None] = mapped_column(String(30), index=True)
+    analysis: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    analysis_schema_version: Mapped[str | None] = mapped_column(String(20), index=True)
+    analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     license: Mapped[str | None] = mapped_column(String(255))
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
@@ -115,6 +124,9 @@ class Article(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     raw_items: Mapped[list[RawItem]] = relationship(back_populates="article")
     event_cluster: Mapped[EventCluster | None] = relationship(back_populates="articles")
     identities: Mapped[list[ArticleIdentity]] = relationship(
+        back_populates="article", cascade="all, delete-orphan"
+    )
+    analysis_runs: Mapped[list[AnalysisRun]] = relationship(
         back_populates="article", cascade="all, delete-orphan"
     )
     authors: Mapped[list[Author]] = relationship(
@@ -162,3 +174,42 @@ class ArticleIdentity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     identity_value: Mapped[str] = mapped_column(Text, nullable=False)
 
     article: Mapped[Article] = relationship(back_populates="identities")
+
+
+class AnalysisRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "analysis_runs"
+    __table_args__ = (
+        Index("ix_analysis_runs_article_started_at", "article_id", "started_at"),
+        Index("ix_analysis_runs_status_started_at", "status", "started_at"),
+    )
+
+    article_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("articles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    status: Mapped[AnalysisRunStatus] = mapped_column(
+        Enum(
+            AnalysisRunStatus,
+            name="analysis_run_status",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
+        default=AnalysisRunStatus.RUNNING,
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    model: Mapped[str] = mapped_column(String(255), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(20), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    request_payload: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    raw_response: Mapped[str | None] = mapped_column(Text)
+    parsed_output: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    error_summary: Mapped[str | None] = mapped_column(Text)
+
+    article: Mapped[Article] = relationship(back_populates="analysis_runs")

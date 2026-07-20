@@ -1,3 +1,3 @@
-from app.domain.enums import ArticleKind, FetchRunStatus, SourceKind
+from app.domain.enums import AnalysisRunStatus, ArticleKind, FetchRunStatus, SourceKind
 
-__all__ = ["ArticleKind", "FetchRunStatus", "SourceKind"]
+__all__ = ["AnalysisRunStatus", "ArticleKind", "FetchRunStatus", "SourceKind"]

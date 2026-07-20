@@ -1,4 +1,5 @@
 from app.models.article import (
+    AnalysisRun,
     Article,
     ArticleIdentity,
     Author,
@@ -11,6 +12,7 @@ from app.models.source import FetchRun, RawItem, Source
 
 __all__ = [
     "Article",
+    "AnalysisRun",
     "ArticleIdentity",
     "Author",
     "EventCluster",

@@ -11,6 +11,7 @@ Source -> RawItem -> Article
 Article <-> Author
 Article <-> Tag
 Source  -> FetchRun
+Article -> AnalysisRun
 ```
 
 - `Source` stores provider configuration and its incremental cursor.
@@ -18,6 +19,10 @@ Source  -> FetchRun
 - `Article` is the normalized record used by later deduplication, AI analysis, and APIs.
 - `Author` and `Tag` are reusable many-to-many dimensions.
 - `FetchRun` records collection progress and outcome counters.
+- `AnalysisRun` records every AI request, raw response, parsed output, version, and failure.
+
+The current structured analysis is stored on `Article` for filtering and display. Historical attempts
+remain append-only in `AnalysisRun`, so retries and later prompt/model changes stay auditable.
 
 `RawItem(source_id, external_id)` is unique. This is the first idempotency boundary: the same provider record can be fetched repeatedly without producing another raw record.
 

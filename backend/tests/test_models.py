@@ -2,8 +2,8 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import configure_mappers
 
 from app.db import Base
-from app.domain import ArticleKind
-from app.models import Article, ArticleIdentity, EventCluster, RawItem
+from app.domain import AnalysisRunStatus, ArticleKind
+from app.models import AnalysisRun, Article, ArticleIdentity, EventCluster, RawItem
 
 
 def test_all_domain_models_are_registered() -> None:
@@ -20,6 +20,7 @@ def test_all_domain_models_are_registered() -> None:
         "article_identities",
         "article_authors",
         "article_tags",
+        "analysis_runs",
     } <= set(Base.metadata.tables)
 
 
@@ -56,3 +57,12 @@ def test_article_identity_and_event_cluster_schema_support_deduplication() -> No
     )
     assert Article.__table__.c.event_cluster_id.references(EventCluster.__table__.c.id)
     assert Article.__table__.c.title_fingerprint.index is True
+
+
+def test_analysis_attempts_reference_articles_and_keep_audit_fields() -> None:
+    assert AnalysisRun.__table__.c.article_id.references(Article.__table__.c.id)
+    assert AnalysisRun.__table__.c.status.type.name == "analysis_run_status"
+    assert {status.value for status in AnalysisRunStatus} == {"running", "success", "failed"}
+    assert {"request_payload", "raw_response", "parsed_output", "error_summary"} <= {
+        column.name for column in AnalysisRun.__table__.columns
+    }

@@ -4,6 +4,15 @@ import json
 import logging
 from pathlib import Path
 
+from app.analysis import AnalysisConfig, AnalysisPipeline
+from app.analysis.config import DEFAULT_ANALYSIS_CONFIG_PATH
+from app.analysis.evaluation import (
+    DEFAULT_ANALYSIS_EVALUATION_PATH,
+)
+from app.analysis.evaluation import (
+    evaluate as evaluate_analysis,
+)
+from app.analysis.schema import strict_json_schema
 from app.collection.registry import SourceRegistry
 from app.collection.runner import CollectionRunner
 from app.collection.scheduler import DEFAULT_SCHEDULE_PATH, serve_scheduler
@@ -32,6 +41,14 @@ def build_parser() -> argparse.ArgumentParser:
     normalize.add_argument("--config", type=Path, default=DEFAULT_PROCESSING_CONFIG_PATH)
     normalize.add_argument("--evaluate", action="store_true", help="run offline evaluation only")
     normalize.add_argument("--evaluation-data", type=Path, default=DEFAULT_EVALUATION_PATH)
+
+    analyze = subparsers.add_parser("analyze", help="classify and summarize normalized articles")
+    analyze.add_argument("--limit", type=int, help="optional maximum number of articles")
+    analyze.add_argument("--config", type=Path, default=DEFAULT_ANALYSIS_CONFIG_PATH)
+    analyze.add_argument("--force", action="store_true", help="reanalyze completed articles")
+    analyze.add_argument("--evaluate", action="store_true", help="run evaluation set only")
+    analyze.add_argument("--evaluation-data", type=Path, default=DEFAULT_ANALYSIS_EVALUATION_PATH)
+    analyze.add_argument("--schema", action="store_true", help="print the active JSON Schema")
     return parser
 
 
@@ -55,7 +72,7 @@ def main() -> None:
         asyncio.run(_collect(args))
     elif args.command == "scheduler":
         asyncio.run(serve_scheduler(args.config))
-    else:
+    elif args.command == "normalize":
         config = ProcessingConfig.from_file(args.config)
         result = (
             evaluate(config, args.evaluation_data).as_dict()
@@ -63,6 +80,18 @@ def main() -> None:
             else NormalizationPipeline(config).run(limit=args.limit).as_dict()
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
+    elif args.schema:
+        print(json.dumps(strict_json_schema(), ensure_ascii=False, indent=2))
+    else:
+        analysis_config = AnalysisConfig.from_file(args.config)
+        analysis_result = (
+            asyncio.run(evaluate_analysis(analysis_config, args.evaluation_data)).as_dict()
+            if args.evaluate
+            else asyncio.run(
+                AnalysisPipeline(analysis_config).run(limit=args.limit, force=args.force)
+            ).as_dict()
+        )
+        print(json.dumps(analysis_result, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
