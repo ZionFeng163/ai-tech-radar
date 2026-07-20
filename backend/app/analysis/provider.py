@@ -141,6 +141,84 @@ class OpenAIResponsesProvider:
         )
 
 
+class BailianChatProvider:
+    """Alibaba Cloud Model Studio via its OpenAI-compatible Chat API."""
+
+    name = "bailian"
+
+    def __init__(
+        self,
+        config: AnalysisConfig,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
+        api_key = os.getenv(config.api_key_env)
+        if not api_key:
+            raise ValueError(f"{config.api_key_env} is required for the bailian provider")
+        self.model = config.model
+        self._endpoint = f"{config.api_base.rstrip('/')}/chat/completions"
+        self._api_key = api_key
+        self._timeout = config.timeout_seconds
+        self._max_output_tokens = config.max_output_tokens
+        self._client = client
+
+    async def analyze(self, request: LLMRequest) -> LLMResponse:
+        schema_instruction = (
+            f"\n\n输出必须是符合以下 JSON Schema 的单个 JSON 对象：\n"
+            f"{json.dumps(request.json_schema, ensure_ascii=False)}"
+        )
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": request.system_prompt},
+                {"role": "user", "content": request.user_prompt + schema_instruction},
+            ],
+            "response_format": {"type": "json_object"},
+            "enable_thinking": False,
+            "max_tokens": self._max_output_tokens,
+        }
+        owns_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=self._timeout)
+        try:
+            response = await client.post(
+                self._endpoint,
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        except httpx.HTTPError as exc:
+            raise ProviderError(f"Bailian request failed: {exc}") from exc
+        finally:
+            if owns_client:
+                await client.aclose()
+
+        raw_response = response.text
+        if response.is_error:
+            retryable = response.status_code == 429 or response.status_code >= 500
+            raise ProviderError(
+                f"Bailian returned HTTP {response.status_code}",
+                raw_response=raw_response,
+                retryable=retryable,
+            )
+        try:
+            data = cast(dict[str, Any], response.json())
+            output_text = _chat_completion_output_text(data)
+        except (ValueError, TypeError, KeyError, IndexError) as exc:
+            raise ProviderError(
+                f"Bailian response did not contain JSON output: {exc}",
+                raw_response=raw_response,
+            ) from exc
+        usage = data.get("usage")
+        return LLMResponse(
+            raw_response=raw_response,
+            output_text=output_text,
+            response_id=data.get("id") if isinstance(data.get("id"), str) else None,
+            usage=cast(dict[str, object], usage) if isinstance(usage, dict) else None,
+        )
+
+
 def _response_output_text(data: dict[str, Any]) -> str:
     direct = data.get("output_text")
     if isinstance(direct, str) and direct:
@@ -163,6 +241,22 @@ def _response_output_text(data: dict[str, Any]) -> str:
             if item.get("type") == "output_text" and isinstance(text, str):
                 return text
     raise KeyError("output_text")
+
+
+def _chat_completion_output_text(data: dict[str, Any]) -> str:
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise KeyError("choices")
+    first = choices[0]
+    if not isinstance(first, dict):
+        raise TypeError("choice must be an object")
+    message = first.get("message")
+    if not isinstance(message, dict):
+        raise KeyError("message")
+    content = message.get("content")
+    if not isinstance(content, str) or not content:
+        raise KeyError("content")
+    return content
 
 
 class DeterministicAnalysisProvider:
@@ -211,6 +305,8 @@ class DeterministicAnalysisProvider:
 
 
 def create_provider(config: AnalysisConfig) -> AnalysisProvider:
+    if config.provider == "bailian":
+        return BailianChatProvider(config)
     if config.provider == "openai":
         return OpenAIResponsesProvider(config)
     return DeterministicAnalysisProvider(config.model)

@@ -134,13 +134,15 @@ URL/标题规范化、身份索引、本地特征 embedding、可配置聚类阈
 
 ## AI 分类、中文摘要与评分
 
-对规范化后的文章运行版本化结构分析（默认使用无需密钥的离线 Provider）：
+对规范化后的文章使用阿里云百炼 `deepseek-v4-flash` 运行版本化结构分析：
 
 ```bash
 docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.cli analyze --limit 10
-docker compose exec backend python -m app.cli analyze --evaluate
+docker compose exec backend python -m app.cli analyze
+docker compose exec backend python -m app.cli analyze \
+  --config config/analysis-offline.json --evaluate
 ```
 
-生产环境可配置 OpenAI Responses API Provider；Prompt、模型、重试、原始响应审计和 50 条人工
+百炼密钥通过 `DASHSCOPE_API_KEY` 注入；Prompt、模型、重试、原始响应审计和 50 条人工
 评测集的说明见 [`backend/docs/ai-analysis.md`](backend/docs/ai-analysis.md)。

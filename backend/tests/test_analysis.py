@@ -6,10 +6,11 @@ from uuid import uuid4
 import httpx
 from pydantic import ValidationError
 
-from app.analysis.config import AnalysisConfig
+from app.analysis.config import DEFAULT_ANALYSIS_CONFIG_PATH, AnalysisConfig
 from app.analysis.evaluation import evaluate, load_evaluation_samples
 from app.analysis.pipeline import AnalysisPipeline
 from app.analysis.provider import (
+    BailianChatProvider,
     LLMRequest,
     LLMResponse,
     OpenAIResponsesProvider,
@@ -50,6 +51,15 @@ def _request() -> LLMRequest:
         license="Apache-2.0",
     )
     return LLMRequest("system", "user", article, strict_json_schema())
+
+
+def test_default_production_config_uses_bailian_deepseek() -> None:
+    config = AnalysisConfig.from_file(DEFAULT_ANALYSIS_CONFIG_PATH)
+
+    assert config.provider == "bailian"
+    assert config.model == "deepseek-v4-flash"
+    assert config.api_key_env == "DASHSCOPE_API_KEY"
+    assert config.api_base == "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 
 def test_versioned_schema_rejects_extra_and_invalid_fields() -> None:
@@ -143,6 +153,46 @@ def test_openai_provider_preserves_raw_error_response(monkeypatch) -> None:
     else:
         raise AssertionError("HTTP errors must raise ProviderError")
     asyncio.run(client.aclose())
+
+
+def test_bailian_provider_uses_json_mode_without_thinking(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "id": "bailian_test",
+                "choices": [
+                    {"message": {"role": "assistant", "content": _valid_output().model_dump_json()}}
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 20},
+            },
+        )
+
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = BailianChatProvider(
+        AnalysisConfig(
+            provider="bailian",
+            model="deepseek-v4-flash",
+            api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            api_key_env="DASHSCOPE_API_KEY",
+        ),
+        client=client,
+    )
+    response = asyncio.run(provider.analyze(_request()))
+    asyncio.run(client.aclose())
+
+    assert captured["url"] == ("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions")
+    assert captured["model"] == "deepseek-v4-flash"
+    assert captured["response_format"] == {"type": "json_object"}
+    assert captured["enable_thinking"] is False
+    assert "JSON Schema" in captured["messages"][1]["content"]
+    assert ArticleAnalysisV1.model_validate_json(response.output_text).importance_score == 7.5
+    assert "bailian_test" in response.raw_response
 
 
 def test_pipeline_retries_invalid_output_and_retains_raw_attempt(monkeypatch) -> None:

@@ -10,7 +10,7 @@ DEFAULT_ANALYSIS_CONFIG_PATH = BACKEND_ROOT / "config" / "analysis.json"
 class AnalysisConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    provider: Literal["deterministic", "openai"] = "deterministic"
+    provider: Literal["deterministic", "openai", "bailian"] = "deterministic"
     model: str = "deterministic-v1"
     api_base: str = "https://api.openai.com/v1"
     api_key_env: str = "OPENAI_API_KEY"
