@@ -152,3 +152,17 @@ docker compose exec backend python -m app.cli analyze \
 后端提供 `/articles`、`/articles/{id}`、`/topics`、`/daily-brief` 和 `/search`，支持组合筛选、
 游标分页、全文检索及查询耗时指标。接口契约与示例见
 [`backend/docs/query-api.md`](backend/docs/query-api.md)。
+
+## Web 前端
+
+Next.js 前端通过服务端渲染访问查询 API，提供首页信号流、组合筛选、技术分类、全文搜索和
+文章深度分析详情页。Docker 内部使用 `API_URL=http://backend:8000`，浏览器侧公开地址使用
+`NEXT_PUBLIC_API_URL=http://localhost:8000`；本地启动后访问 http://localhost:3000。
+
+```bash
+cd frontend
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
