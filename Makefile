@@ -1,6 +1,6 @@
 PYTHON ?= .venv/bin/python
 
-.PHONY: dev down logs backend-test backend-lint frontend-test frontend-lint test lint
+.PHONY: dev down logs backend-test backend-lint frontend-test frontend-lint frontend-build test lint e2e ci
 
 dev:
 	docker compose up --build
@@ -23,6 +23,14 @@ frontend-test:
 frontend-lint:
 	cd frontend && npm run lint && npm run typecheck
 
-test: backend-test frontend-test
+frontend-build:
+	cd frontend && npm run build
+
+test: backend-test frontend-test frontend-build
 
 lint: backend-lint frontend-lint
+
+e2e:
+	./scripts/e2e.sh
+
+ci: lint test

@@ -59,6 +59,20 @@ make lint
 make test
 ```
 
+统一质量门禁包含后端 Ruff、mypy、pytest，以及前端 ESLint、TypeScript、Vitest 和生产构建。
+执行最小端到端验收时，会启动一套隔离的临时 Docker Compose 环境，不会修改日常开发数据库：
+
+```bash
+make e2e
+```
+
+该命令依次执行数据库迁移、写入确定性样例资讯、查询列表和搜索 API，并验证首页、详情页及
+社交分享资源可访问。失败时返回非零状态并输出后端、前端最近日志。完整本地门禁可运行
+`make ci` 后再运行 `make e2e`。
+
+GitHub Actions 会在 Pull Request 和 `main` 分支推送时自动执行后端、前端与端到端三组检查，
+配置见 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
+
 ## 配置
 
 本地配置从 `.env` 读取，所有可用变量及开发默认值见 `.env.example`。不要提交真实密钥或本地 `.env`。
