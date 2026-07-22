@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -18,7 +19,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     cast as sql_cast,
 )
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 from sqlalchemy.sql.base import ExecutableOption
 
 from app.analysis.schema import OpenSourceStatus, TechnicalCategory
@@ -31,6 +32,7 @@ from app.api.schemas import (
     SourceReference,
     TopicSummary,
 )
+from app.domain import ArticleKind
 from app.models import Article, RawItem, Source
 
 
@@ -47,7 +49,7 @@ class ArticleFilters:
 
 
 def article_predicates(filters: ArticleFilters) -> list[ColumnElement[bool]]:
-    predicates: list[ColumnElement[bool]] = []
+    predicates: list[ColumnElement[bool]] = [_public_signal_predicate()]
     if filters.date_from is not None:
         predicates.append(
             Article.published_at >= datetime.combine(filters.date_from, time.min, tzinfo=UTC)
@@ -75,6 +77,63 @@ def article_predicates(filters: ArticleFilters) -> list[ColumnElement[bool]]:
     if filters.open_source_status is not None:
         predicates.append(Article.open_source_status == filters.open_source_status.value)
     return predicates
+
+
+def _quality_predicates(article: Any) -> tuple[ColumnElement[bool], ...]:
+    return (
+        article.analysis_schema_version.is_not(None),
+        article.summary.is_not(None),
+        article.importance_score >= 4,
+        article.credibility_score >= 4,
+    )
+
+
+def _public_signal_predicate() -> ColumnElement[bool]:
+    """Expose only analyzed signals and one representative per event cluster."""
+
+    peer = aliased(Article)
+    newer_public_peer = exists(
+        select(1).where(
+            peer.event_cluster_id == Article.event_cluster_id,
+            *_quality_predicates(peer),
+            or_(
+                peer.published_at > Article.published_at,
+                and_(peer.published_at == Article.published_at, peer.id > Article.id),
+            ),
+        )
+    )
+    return and_(
+        *_quality_predicates(Article),
+        or_(Article.event_cluster_id.is_(None), ~newer_public_peer),
+        _latest_repository_release_predicate(),
+    )
+
+
+def _latest_repository_release_predicate() -> ColumnElement[bool]:
+    current_raw = aliased(RawItem)
+    peer_raw = aliased(RawItem)
+    peer_article = aliased(Article)
+    current_repository = current_raw.source_metadata["repository"]["full_name"].as_string()
+    peer_repository = peer_raw.source_metadata["repository"]["full_name"].as_string()
+    newer_release = exists(
+        select(1)
+        .select_from(current_raw)
+        .join(peer_raw, peer_repository == current_repository)
+        .join(peer_article, peer_article.id == peer_raw.article_id)
+        .where(
+            current_raw.article_id == Article.id,
+            peer_article.kind == ArticleKind.RELEASE,
+            *_quality_predicates(peer_article),
+            or_(
+                peer_article.published_at > Article.published_at,
+                and_(
+                    peer_article.published_at == Article.published_at,
+                    peer_article.id > Article.id,
+                ),
+            ),
+        )
+    )
+    return or_(Article.kind != ArticleKind.RELEASE, ~newer_release)
 
 
 def list_articles(
@@ -257,6 +316,7 @@ def article_detail(article: Article) -> ArticleDetail:
         analysis_schema_version=article.analysis_schema_version,
         analyzed_at=article.analyzed_at,
         source_tags=sorted(tag.name for tag in article.tags),
+        analysis_depth="deep" if article.analysis.get("depth") == "deep" else "brief",
     )
 
 

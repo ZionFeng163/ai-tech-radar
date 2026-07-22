@@ -35,6 +35,8 @@ class HuggingFaceConfig(BaseModel):
     initial_window_hours: int = Field(default=24 * 7, ge=1, le=24 * 90)
     overlap_seconds: int = Field(default=300, ge=0, le=86_400)
     page_size: int = Field(default=30, ge=1, le=100)
+    fetch_readme: bool = False
+    max_readme_characters: int = Field(default=12_000, ge=500, le=50_000)
     request_interval_seconds: float = Field(default=0.2, ge=0, le=60)
     timeout_seconds: float = Field(default=30, gt=0, le=120)
     max_retries: int = Field(default=3, ge=0, le=10)

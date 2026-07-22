@@ -7,8 +7,18 @@
   ],
   "dataset_filters": [],
   "authors": [],
-  "organizations": [],
-  "initial_window_hours": 168,
+  "organizations": [
+    "deepseek-ai",
+    "Qwen",
+    "meta-llama",
+    "google",
+    "mistralai",
+    "nvidia",
+    "BAAI"
+  ],
+  "initial_window_hours": 72,
   "overlap_seconds": 300,
-  "page_size": 30
+  "page_size": 30,
+  "fetch_readme": true,
+  "max_readme_characters": 12000
 }

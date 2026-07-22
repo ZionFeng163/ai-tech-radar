@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
 import httpx
 
@@ -13,6 +13,7 @@ from app.analysis.schema import (
     SCHEMA_VERSION,
     ArticleAnalysisInput,
     ArticleAnalysisV1,
+    ArticleBriefV1,
     OpenSourceStatus,
     TechnicalCategory,
 )
@@ -24,6 +25,7 @@ class LLMRequest:
     user_prompt: str
     article: ArticleAnalysisInput
     json_schema: dict[str, Any]
+    depth: Literal["brief", "deep"] = "deep"
 
     def audit_payload(self, model: str) -> dict[str, object]:
         return {
@@ -32,6 +34,7 @@ class LLMRequest:
             "user_prompt": self.user_prompt,
             "schema_name": SCHEMA_NAME,
             "schema": self.json_schema,
+            "depth": self.depth,
         }
 
 
@@ -280,6 +283,22 @@ class DeterministicAnalysisProvider:
             f"根据{source_phrase}提供的信息，该条目介绍了相关方法、产品或资源的最新进展；"
             "具体效果与适用边界仍应以原始资料和后续复现实验为准。"
         )
+        if request.depth == "brief":
+            brief = ArticleBriefV1(
+                schema_version=SCHEMA_VERSION,
+                technical_category=category,
+                tags=tags,
+                summary_zh=summary,
+                open_source_status=open_source,
+                credibility_score=8.0 if article.source_urls else 6.0,
+                importance_score=_importance_score(article, category),
+            )
+            output = brief.model_dump_json()
+            raw = json.dumps(
+                {"provider": self.name, "model": self.model, "output_text": output},
+                ensure_ascii=False,
+            )
+            return LLMResponse(raw_response=raw, output_text=output)
         result = ArticleAnalysisV1(
             schema_version=SCHEMA_VERSION,
             technical_category=category,

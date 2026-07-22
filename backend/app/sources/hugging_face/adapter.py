@@ -146,6 +146,8 @@ class HuggingFaceAdapter(SourceAdapter):
                         reached_cutoff = True
                         break
                     item = self._collected_item(query, value)
+                    if self.config.fetch_readme:
+                        item = await self._with_readme(item)
                 except (ValueError, TypeError) as error:
                     self._record_error(
                         state,
@@ -187,6 +189,10 @@ class HuggingFaceAdapter(SourceAdapter):
         description = self._optional_string(payload, "description") or self._card_description(
             card_data
         )
+        readme = self._optional_string(payload, "_readme")
+        content = "\n\n".join(
+            dict.fromkeys(value for value in (description, readme) if value)
+        ) or None
         last_modified = self._required_string(payload, "lastModified")
         created_at = self._optional_string(payload, "createdAt") or last_modified
         pipeline_tag = self._optional_string(payload, "pipeline_tag")
@@ -220,7 +226,7 @@ class HuggingFaceAdapter(SourceAdapter):
             kind=kind,
             canonical_url=item.url,
             title=title,
-            content=description,
+            content=content,
             published_at=self._parse_datetime(created_at),
             updated_at=self._parse_datetime(last_modified),
             authors=[
@@ -395,6 +401,24 @@ class HuggingFaceAdapter(SourceAdapter):
             payload=payload,
             fetched_at=self._aware_now(),
         )
+
+    async def _with_readme(self, item: CollectedItem) -> CollectedItem:
+        payload = dict(item.payload)
+        repo_id = self._required_string(payload, "id")
+        resource_type = HuggingFaceResourceType(
+            self._required_string(payload, "_resource_type")
+        )
+        prefix = "datasets/" if resource_type is HuggingFaceResourceType.DATASET else ""
+        url = f"{self.config.endpoint}{prefix}{quote(repo_id, safe='/')}/raw/main/README.md"
+        try:
+            response = await self._request(url)
+        except httpx.HTTPError as error:
+            logger.info("Hugging Face README unavailable for %s: %s", repo_id, error)
+            return item
+        text = response.text.strip()
+        if text:
+            payload["_readme"] = text[: self.config.max_readme_characters]
+        return item.model_copy(update={"payload": payload})
 
     def _query_cutoff(self, state: _HubCursor, query: _HubQuery) -> datetime:
         watermark = state.watermarks.get(query.key)

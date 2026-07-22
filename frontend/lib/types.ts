@@ -60,6 +60,7 @@ export interface ArticleDetail extends ArticleSummary {
   analysis_schema_version: string | null;
   analyzed_at: string | null;
   source_tags: string[];
+  analysis_depth: "brief" | "deep";
 }
 
 export interface PageMetadata {

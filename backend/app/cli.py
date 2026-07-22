@@ -46,6 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--limit", type=int, help="optional maximum number of articles")
     analyze.add_argument("--config", type=Path, default=DEFAULT_ANALYSIS_CONFIG_PATH)
     analyze.add_argument("--force", action="store_true", help="reanalyze completed articles")
+    analyze.add_argument(
+        "--depth",
+        choices=("brief", "deep"),
+        default="brief",
+        help="generate a low-cost brief or a full deep analysis",
+    )
     analyze.add_argument("--evaluate", action="store_true", help="run evaluation set only")
     analyze.add_argument("--evaluation-data", type=Path, default=DEFAULT_ANALYSIS_EVALUATION_PATH)
     analyze.add_argument("--schema", action="store_true", help="print the active JSON Schema")
@@ -88,7 +94,9 @@ def main() -> None:
             asyncio.run(evaluate_analysis(analysis_config, args.evaluation_data)).as_dict()
             if args.evaluate
             else asyncio.run(
-                AnalysisPipeline(analysis_config).run(limit=args.limit, force=args.force)
+                AnalysisPipeline(analysis_config, depth=args.depth).run(
+                    limit=args.limit, force=args.force
+                )
             ).as_dict()
         )
         print(json.dumps(analysis_result, ensure_ascii=False, indent=2))

@@ -44,7 +44,7 @@ function queryString(values: Record<string, string | number | undefined>): strin
 async function apiFetch<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: { Accept: "application/json" },
-    next: { revalidate: 60 },
+    cache: "no-store",
   });
   if (!response.ok) {
     throw new ApiError(response.status);

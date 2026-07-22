@@ -234,6 +234,7 @@ class GitHubReleasesAdapter(SourceAdapter):
             )
 
         repository = self._required_object(payload, "repository")
+        repository_name = self._optional_string(repository, "full_name") or "GitHub"
         topics_value = repository.get("topics", [])
         topics = [value for value in cast(list[JsonValue], topics_value) if isinstance(value, str)]
         tag_name = self._optional_string(payload, "tag_name")
@@ -267,11 +268,12 @@ class GitHubReleasesAdapter(SourceAdapter):
         tags = [*topics]
         if tag_name:
             tags.append(tag_name)
+        release_name = self._optional_string(payload, "name") or tag_name or item.external_id
         return NormalizedItem(
             external_id=item.external_id,
             kind=ArticleKind.RELEASE,
             canonical_url=item.url,
-            title=self._optional_string(payload, "name") or tag_name or item.external_id,
+            title=f"{repository_name} · {release_name}",
             content=self._optional_string(payload, "body"),
             published_at=self._parse_datetime(published),
             updated_at=self._parse_datetime(updated) if updated else None,

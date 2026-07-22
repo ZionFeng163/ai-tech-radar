@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.analysis import AnalysisConfig, AnalysisPipeline
 from app.analysis.schema import OpenSourceStatus, TechnicalCategory
 from app.api.cursor import PageCursor, decode_cursor, encode_cursor
 from app.api.dependencies import SessionDependency
@@ -78,6 +79,35 @@ def article_by_id(article_id: UUID, session: SessionDependency) -> ArticleDetail
     article = get_article(session, article_id)
     if article is None:
         raise HTTPException(status_code=404, detail="article not found")
+    return article_detail(article)
+
+
+@router.post(
+    "/articles/{article_id}/deep-analysis",
+    response_model=ArticleDetail,
+    tags=["articles"],
+)
+async def generate_deep_analysis(
+    article_id: UUID,
+    session: SessionDependency,
+) -> ArticleDetail:
+    article = get_article(session, article_id)
+    if article is None:
+        raise HTTPException(status_code=404, detail="article not found")
+    if article.analysis.get("depth") != "deep":
+        try:
+            succeeded, attempts = await AnalysisPipeline(
+                AnalysisConfig.from_file(), depth="deep"
+            ).run_article(article_id)
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=503, detail="deep analysis unavailable") from exc
+        if not succeeded:
+            status = 409 if attempts == 0 else 502
+            raise HTTPException(status_code=status, detail="deep analysis did not complete")
+        session.expire_all()
+        article = get_article(session, article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="article not found")
     return article_detail(article)
 
 

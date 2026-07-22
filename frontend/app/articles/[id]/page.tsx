@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ApiError, getArticle } from "@/lib/api";
+import { DeepAnalysisButton } from "@/components/deep-analysis-button";
 import {
   categoryLabels,
   formatDate,
@@ -69,7 +70,9 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
 
         <div className="detail-layout">
           <div className="detail-content">
-            {analysisSections.map(([title, value], index) => {
+            {article.analysis_depth === "brief" ? (
+              <DeepAnalysisButton articleId={article.id} />
+            ) : analysisSections.map(([title, value], index) => {
               const items = toTextItems(value);
               if (!items.length) return null;
               return (
@@ -120,7 +123,7 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
             ) : null}
             <section>
               <h2>分析状态</h2>
-              <p>{article.analyzed_at ? `已于 ${formatDate(article.analyzed_at)} 完成` : "等待深度分析"}</p>
+              <p>{article.analysis_depth === "deep" ? "深度分析已生成" : "快速概览 · 可按需生成深度分析"}</p>
             </section>
           </aside>
         </div>

@@ -140,6 +140,38 @@ def test_dataset_filter_author_and_normalization() -> None:
     asyncio.run(scenario())
 
 
+def test_optional_readme_enrichment_provides_analysis_content() -> None:
+    model = load_json("hugging_face_models.json")[0]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/raw/main/README.md"):
+            return httpx.Response(
+                200,
+                text="# RadarLM\n\nUses grouped-query attention for lower-memory inference.",
+                request=request,
+            )
+        return httpx.Response(200, json=[{**model, "description": None}], request=request)
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = HuggingFaceAdapter(
+                HuggingFaceConfig(
+                    resource_types=[HuggingFaceResourceType.MODEL],
+                    model_tasks=["text-generation"],
+                    fetch_readme=True,
+                    request_interval_seconds=0,
+                ),
+                client=client,
+                clock=lambda: NOW,
+            )
+            batch = await adapter.fetch(limit=1)
+            normalized = adapter.normalize(batch.items[0])
+
+        assert "grouped-query attention" in (normalized.content or "")
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize(
     ("headers", "expected_delay"),
     [

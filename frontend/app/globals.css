@@ -125,6 +125,12 @@ button, input, select { font: inherit; }
 .analysis-section p, .analysis-section li { color: #343630; font-size: 1.05rem; line-height: 1.85; }
 .analysis-section ul { padding-left: 1.2em; }
 .analysis-section li { padding-left: 10px; margin-bottom: 12px; }
+.deep-analysis-cta { margin-bottom: 56px; padding: 32px; border: 2px solid var(--ink); background: var(--acid); }
+.deep-analysis-cta h2 { margin: 8px 0 12px; font-size: clamp(2rem, 4vw, 3.6rem); letter-spacing: -.05em; }
+.deep-analysis-cta > p:not(.section-index) { max-width: 680px; line-height: 1.7; }
+.deep-analysis-cta .action-button { margin-top: 12px; }
+.deep-analysis-cta .action-button:disabled { cursor: wait; opacity: .65; }
+.deep-analysis-error { color: #8b1e14; font-weight: 750; }
 .raw-content { border-top: 1px solid var(--line); padding-top: 48px; }
 .detail-aside { align-self: start; position: sticky; top: 108px; border-top: 3px solid var(--ink); }
 .detail-aside section { padding: 20px 0; border-bottom: 1px solid var(--line); }

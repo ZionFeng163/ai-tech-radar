@@ -75,7 +75,7 @@ def test_fetch_normalizes_release_and_uses_etag_on_next_run() -> None:
         assert first.has_more is False
         assert first.items[0].external_id == "acme/radar:987654"
         assert normalized.kind is ArticleKind.RELEASE
-        assert normalized.title == "Radar v1.2.0"
+        assert normalized.title == "acme/radar · Radar v1.2.0"
         assert normalized.license == "Apache-2.0"
         assert normalized.tags == [
             "artificial-intelligence",

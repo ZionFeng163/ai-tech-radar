@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -48,6 +49,7 @@ class ArticleDetail(ArticleSummary):
     analysis_schema_version: str | None
     analyzed_at: datetime | None
     source_tags: list[str]
+    analysis_depth: Literal["brief", "deep"]
 
 
 class PageMetadata(BaseModel):

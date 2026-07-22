@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 SCHEMA_VERSION = "1.0"
 SCHEMA_NAME = "article_analysis_v1"
+BRIEF_SCHEMA_NAME = "article_brief_v1"
 
 
 class TechnicalCategory(StrEnum):
@@ -41,6 +42,7 @@ class ArticleAnalysisInput(BaseModel):
     source_urls: list[str] = Field(default_factory=list)
     source_names: list[str] = Field(default_factory=list)
     existing_tags: list[str] = Field(default_factory=list)
+    source_context: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ArticleAnalysisV1(BaseModel):
@@ -77,11 +79,43 @@ class ArticleAnalysisV1(BaseModel):
         return value.strip()
 
 
+class ArticleBriefV1(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal["1.0"]
+    technical_category: TechnicalCategory
+    tags: list[str] = Field(min_length=1, max_length=8)
+    summary_zh: str = Field(min_length=40, max_length=300)
+    open_source_status: OpenSourceStatus
+    credibility_score: float = Field(ge=0, le=10)
+    importance_score: float = Field(ge=0, le=10)
+
+    @field_validator("tags")
+    @classmethod
+    def normalize_tags(cls, values: list[str]) -> list[str]:
+        normalized = list(dict.fromkeys(value.strip() for value in values if value.strip()))
+        if not normalized:
+            raise ValueError("at least one non-empty value is required")
+        return normalized
+
+    @field_validator("summary_zh")
+    @classmethod
+    def strip_summary(cls, value: str) -> str:
+        return value.strip()
+
+
 def strict_json_schema() -> dict[str, Any]:
     """Return the versioned schema with strict object rules at every nesting level."""
 
     schema = ArticleAnalysisV1.model_json_schema()
     schema["title"] = "AI Tech Radar Article Analysis v1"
+    _forbid_additional_properties(schema)
+    return schema
+
+
+def brief_json_schema() -> dict[str, Any]:
+    schema = ArticleBriefV1.model_json_schema()
+    schema["title"] = "AI Tech Radar Article Brief v1"
     _forbid_additional_properties(schema)
     return schema
 
