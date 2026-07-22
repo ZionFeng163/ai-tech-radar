@@ -261,6 +261,12 @@ class AnalysisPipeline:
             article.analysis_tags = output.tags
             article.importance_score = output.importance_score
             article.credibility_score = output.credibility_score
+            if isinstance(output, ArticleBriefV1):
+                article.signal_type = output.signal_type.value
+                article.technical_overview = output.technical_overview
+                article.novelty_summary = output.novelty_summary
+                article.heat_reasons = output.heat_reasons
+                article.heat_score = output.heat_score
             article.open_source_status = output.open_source_status.value
             article.analysis = parsed
             article.analysis_schema_version = output.schema_version

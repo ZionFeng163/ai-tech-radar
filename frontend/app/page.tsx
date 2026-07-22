@@ -31,7 +31,10 @@ export default async function Home({
     }),
     getTopics(),
   ]);
-  const [featured, ...articles] = articlePage.items;
+  const rankedArticles = [...articlePage.items].sort(
+    (left, right) => radarScore(right) - radarScore(left),
+  );
+  const [featured, ...articles] = rankedArticles;
   const averageImportance = topicList.items.length
     ? topicList.items.reduce((sum, topic) => sum + (topic.average_importance ?? 0), 0) /
       topicList.items.length
@@ -45,7 +48,7 @@ export default async function Home({
           <p className="kicker">DAILY DEEP LEARNING INTELLIGENCE · 上海</p>
           <h1>把每天的 AI 噪声，压缩成值得追踪的信号。</h1>
           <p className="hero-intro">
-            聚合论文、开源项目、模型与数据集，用中文解释它为何重要，而不只是重复发生了什么。
+            同时追踪技术突破与计算机圈热点，用中文解释它新在哪、为什么可能发酵。
           </p>
         </div>
         <div className="hero-stats" aria-label="雷达概览">
@@ -68,7 +71,7 @@ export default async function Home({
         <div className="section-heading">
           <div>
             <p className="section-index">01 / SIGNALS</p>
-            <h2 id="signals-title">最新技术信号</h2>
+            <h2 id="signals-title">技术突破与圈内热点</h2>
           </div>
           <p>{articlePage.items.length} 条结果 · 查询 {articlePage.page.query_ms.toFixed(1)} ms</p>
         </div>
@@ -108,6 +111,10 @@ export default async function Home({
       </section>
     </main>
   );
+}
+
+function radarScore(article: { importance_score: number | null; heat_score: number | null }): number {
+  return Math.max(article.importance_score ?? 0, article.heat_score ?? 0);
 }
 
 function buildHref(filters: HomeSearchParams): string {

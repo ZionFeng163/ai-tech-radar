@@ -32,6 +32,14 @@ class OpenSourceStatus(StrEnum):
     UNKNOWN = "unknown"
 
 
+class SignalType(StrEnum):
+    TECHNICAL = "technical"
+    PRODUCT = "product"
+    ECOSYSTEM = "ecosystem"
+    INDUSTRY = "industry"
+    COMMUNITY = "community"
+
+
 class ArticleAnalysisInput(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -84,13 +92,18 @@ class ArticleBriefV1(BaseModel):
 
     schema_version: Literal["1.0"]
     technical_category: TechnicalCategory
+    signal_type: SignalType
     tags: list[str] = Field(min_length=1, max_length=8)
     summary_zh: str = Field(min_length=40, max_length=300)
+    technical_overview: str = Field(min_length=20, max_length=500)
+    novelty_summary: str = Field(min_length=10, max_length=300)
+    heat_reasons: list[str] = Field(min_length=1, max_length=4)
+    heat_score: float = Field(ge=0, le=10)
     open_source_status: OpenSourceStatus
     credibility_score: float = Field(ge=0, le=10)
     importance_score: float = Field(ge=0, le=10)
 
-    @field_validator("tags")
+    @field_validator("tags", "heat_reasons")
     @classmethod
     def normalize_tags(cls, values: list[str]) -> list[str]:
         normalized = list(dict.fromkeys(value.strip() for value in values if value.strip()))
@@ -98,7 +111,7 @@ class ArticleBriefV1(BaseModel):
             raise ValueError("at least one non-empty value is required")
         return normalized
 
-    @field_validator("summary_zh")
+    @field_validator("summary_zh", "technical_overview", "novelty_summary")
     @classmethod
     def strip_summary(cls, value: str) -> str:
         return value.strip()

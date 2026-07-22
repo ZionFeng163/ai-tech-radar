@@ -287,8 +287,13 @@ class DeterministicAnalysisProvider:
             brief = ArticleBriefV1(
                 schema_version=SCHEMA_VERSION,
                 technical_category=category,
+                signal_type="technical",
                 tags=tags,
                 summary_zh=summary,
+                technical_overview=f"资料指向{_category_name(category)}方向的技术或工程变化，具体机制仍需结合原始资料确认。",
+                novelty_summary="当前资料可确认有新变化，但尚不足以判断它是否形成显著技术突破。",
+                heat_reasons=["若后续效果得到复现，可能引发相关开发者讨论"],
+                heat_score=_importance_score(article, category),
                 open_source_status=open_source,
                 credibility_score=8.0 if article.source_urls else 6.0,
                 importance_score=_importance_score(article, category),

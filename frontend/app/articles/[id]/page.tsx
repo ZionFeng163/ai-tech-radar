@@ -63,6 +63,7 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
           {article.summary ? <p className="detail-deck">{article.summary}</p> : null}
           <div className="detail-scoreboard">
             <div><span>重要性</span><strong>{formatScore(article.importance_score)}</strong></div>
+            <div><span>热度潜力</span><strong>{formatScore(article.heat_score)}</strong></div>
             <div><span>可信度</span><strong>{formatScore(article.credibility_score)}</strong></div>
             <div><span>技术方向</span><strong>{article.primary_category ? categoryLabels[article.primary_category] : "待分类"}</strong></div>
           </div>
@@ -70,6 +71,27 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
 
         <div className="detail-layout">
           <div className="detail-content">
+            {article.technical_overview ? (
+              <section className="analysis-section">
+                <p className="section-index">01 / QUICK READ</p>
+                <h2>它是什么</h2>
+                <p>{article.technical_overview}</p>
+              </section>
+            ) : null}
+            {article.novelty_summary ? (
+              <section className="analysis-section">
+                <p className="section-index">02 / NOVELTY</p>
+                <h2>新在哪、亮点是什么</h2>
+                <p>{article.novelty_summary}</p>
+              </section>
+            ) : null}
+            {article.heat_reasons.length ? (
+              <section className="analysis-section">
+                <p className="section-index">03 / HEAT</p>
+                <h2>为什么可能引发热度</h2>
+                <ul>{article.heat_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+              </section>
+            ) : null}
             {article.analysis_depth === "brief" ? (
               <DeepAnalysisButton articleId={article.id} />
             ) : analysisSections.map(([title, value], index) => {

@@ -83,7 +83,7 @@ def _quality_predicates(article: Any) -> tuple[ColumnElement[bool], ...]:
     return (
         article.analysis_schema_version.is_not(None),
         article.summary.is_not(None),
-        article.importance_score >= 4,
+        or_(article.importance_score >= 4, article.heat_score >= 6.5),
         article.credibility_score >= 4,
     )
 
@@ -292,6 +292,11 @@ def article_summary(article: Article) -> ArticleSummary:
         ),
         tags=article.analysis_tags,
         importance_score=article.importance_score,
+        heat_score=article.heat_score,
+        signal_type=article.signal_type,
+        technical_overview=article.technical_overview,
+        novelty_summary=article.novelty_summary,
+        heat_reasons=article.heat_reasons,
         credibility_score=article.credibility_score,
         open_source_status=(
             OpenSourceStatus(article.open_source_status) if article.open_source_status else None

@@ -14,6 +14,7 @@ export function ArticleCard({ article, featured = false, index }: ArticleCardPro
     ? categoryLabels[article.primary_category]
     : "待分类";
   const source = article.sources[0]?.name ?? "未知来源";
+  const deck = article.novelty_summary ?? article.summary;
 
   return (
     <article className={featured ? "article-card article-card-featured" : "article-card"}>
@@ -29,7 +30,7 @@ export function ArticleCard({ article, featured = false, index }: ArticleCardPro
         <h2>
           <Link href={`/articles/${article.id}`}>{article.title}</Link>
         </h2>
-        {article.summary ? <p className="article-summary">{article.summary}</p> : null}
+        {deck ? <p className="article-summary">{deck}</p> : null}
         <div className="article-footer">
           <span className="source-name">{source}</span>
           <div className="score" aria-label={`重要性评分 ${formatScore(article.importance_score)}`}>
@@ -37,6 +38,13 @@ export function ArticleCard({ article, featured = false, index }: ArticleCardPro
             <strong>{formatScore(article.importance_score)}</strong>
             <span className="score-track" aria-hidden="true">
               <span style={{ width: `${(article.importance_score ?? 0) * 10}%` }} />
+            </span>
+          </div>
+          <div className="score" aria-label={`热度潜力 ${formatScore(article.heat_score)}`}>
+            <span>热度</span>
+            <strong>{formatScore(article.heat_score)}</strong>
+            <span className="score-track" aria-hidden="true">
+              <span style={{ width: `${(article.heat_score ?? 0) * 10}%` }} />
             </span>
           </div>
         </div>

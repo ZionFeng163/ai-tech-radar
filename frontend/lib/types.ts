@@ -24,6 +24,7 @@ export type TechnicalCategory =
   | "other";
 
 export type OpenSourceStatus = "open" | "partial" | "closed" | "unknown";
+export type SignalType = "technical" | "product" | "ecosystem" | "industry" | "community";
 
 export interface SourceReference {
   slug: string;
@@ -45,6 +46,11 @@ export interface ArticleSummary {
   primary_category: TechnicalCategory | null;
   tags: string[];
   importance_score: number | null;
+  heat_score: number | null;
+  signal_type: SignalType | null;
+  technical_overview: string | null;
+  novelty_summary: string | null;
+  heat_reasons: string[];
   credibility_score: number | null;
   open_source_status: OpenSourceStatus | null;
   published_at: string;

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.analysis.schema import OpenSourceStatus, TechnicalCategory
+from app.analysis.schema import OpenSourceStatus, SignalType, TechnicalCategory
 from app.domain import ArticleKind
 
 
@@ -34,6 +34,11 @@ class ArticleSummary(BaseModel):
     primary_category: TechnicalCategory | None
     tags: list[str]
     importance_score: float | None
+    heat_score: float | None
+    signal_type: SignalType | None
+    technical_overview: str | None
+    novelty_summary: str | None
+    heat_reasons: list[str]
     credibility_score: float | None
     open_source_status: OpenSourceStatus | None
     published_at: datetime
