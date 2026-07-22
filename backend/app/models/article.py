@@ -26,6 +26,7 @@ from app.domain import AnalysisRunStatus, ArticleKind
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin, enum_values, utc_now
 
 if TYPE_CHECKING:
+    from app.models.edition import RadarEdition
     from app.models.source import RawItem
 
 
@@ -127,6 +128,9 @@ class Article(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     raw_items: Mapped[list[RawItem]] = relationship(back_populates="article")
+    editions: Mapped[list[RadarEdition]] = relationship(
+        secondary="radar_edition_articles", back_populates="articles"
+    )
     event_cluster: Mapped[EventCluster | None] = relationship(back_populates="articles")
     identities: Mapped[list[ArticleIdentity]] = relationship(
         back_populates="article", cascade="all, delete-orphan"

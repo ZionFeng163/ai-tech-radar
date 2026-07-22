@@ -1,13 +1,18 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getArticles, getTopics } from "@/lib/api";
+import { getArticles, getRadarEditions, getTopics } from "@/lib/api";
 
 import Home from "./page";
 
 vi.mock("@/lib/api", () => ({
   getArticles: vi.fn(),
+  getRadarEditions: vi.fn(),
   getTopics: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 const article = {
@@ -34,6 +39,17 @@ const article = {
 
 describe("Home", () => {
   beforeEach(() => {
+    vi.mocked(getRadarEditions).mockResolvedValue({
+      items: [{
+        id: "edition-1",
+        captured_at: "2026-07-22T09:00:00Z",
+        finished_at: "2026-07-22T09:02:00Z",
+        status: "complete",
+        article_count: 1,
+        source_results: [],
+        error_summary: null,
+      }],
+    });
     vi.mocked(getArticles).mockResolvedValue({
       items: [article],
       page: { limit: 9, has_more: false, next_cursor: null, query_ms: 4.2 },

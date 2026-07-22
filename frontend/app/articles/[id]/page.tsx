@@ -56,7 +56,7 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
         <header className="detail-header">
           <div className="detail-meta article-meta">
             <span>{kindLabels[article.kind]}</span>
-            <time dateTime={article.published_at}>{formatDate(article.published_at)}</time>
+            <time dateTime={article.published_at}>技术发布 · {formatDate(article.published_at)}</time>
             <span>{openSourceLabels[article.open_source_status ?? "unknown"]}</span>
           </div>
           <h1>{article.title}</h1>

@@ -4,6 +4,7 @@ import type { OpenSourceStatus, TechnicalCategory } from "@/lib/types";
 interface FilterBarProps {
   action?: string;
   category?: string;
+  edition?: string;
   importanceMin?: string;
   openSourceStatus?: string;
   query?: string;
@@ -13,6 +14,7 @@ interface FilterBarProps {
 export function FilterBar({
   action = "/",
   category,
+  edition,
   importanceMin,
   openSourceStatus,
   query,
@@ -21,6 +23,7 @@ export function FilterBar({
   return (
     <form className="filter-bar" action={action}>
       {query ? <input type="hidden" name="q" value={query} /> : null}
+      {edition ? <input type="hidden" name="edition" value={edition} /> : null}
       <label>
         <span>技术分类</span>
         <select name="category" defaultValue={category ?? ""}>

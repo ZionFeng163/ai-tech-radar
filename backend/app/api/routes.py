@@ -29,12 +29,16 @@ from app.api.schemas import (
     ArticlePage,
     DailyBrief,
     PageMetadata,
+    RadarEditionList,
+    RadarEditionSummary,
     SearchPage,
     TopicList,
 )
 from app.config import get_settings
+from app.db import SessionLocal
 from app.domain import AnalysisRunStatus
-from app.models import AnalysisRun
+from app.editions import ManualRadarService
+from app.models import AnalysisRun, RadarEdition
 
 router = APIRouter()
 
@@ -48,6 +52,7 @@ PageLimit = Annotated[int, Query(ge=1, le=100)]
 @router.get("/articles", response_model=ArticlePage, tags=["articles"])
 def articles(
     session: SessionDependency,
+    edition: UUID | None = None,
     date_from: DateFilter = None,
     date_to: DateFilter = None,
     source: SourceFilter = None,
@@ -57,7 +62,15 @@ def articles(
     cursor: CursorFilter = None,
     limit: PageLimit = 20,
 ) -> ArticlePage:
-    filters = _filters(date_from, date_to, source, category, importance_min, open_source_status)
+    filters = _filters(
+        date_from,
+        date_to,
+        source,
+        category,
+        importance_min,
+        open_source_status,
+        edition,
+    )
     decoded_cursor = _decode_cursor(cursor)
     started = perf_counter()
     rows, has_more = list_articles(session, filters, limit=limit, cursor=decoded_cursor)
@@ -76,6 +89,41 @@ def articles(
             query_ms=query_ms,
         ),
     )
+
+
+@router.get("/radar-editions", response_model=RadarEditionList, tags=["radar"])
+def radar_editions(session: SessionDependency) -> RadarEditionList:
+    rows = list(
+        session.scalars(select(RadarEdition).order_by(RadarEdition.captured_at.desc()).limit(100))
+    )
+    return RadarEditionList(items=[_edition_summary(row) for row in rows])
+
+
+@router.post(
+    "/radar-editions",
+    response_model=RadarEditionSummary,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["radar"],
+)
+def create_radar_edition(background_tasks: BackgroundTasks) -> RadarEditionSummary:
+    service = ManualRadarService()
+    edition_id = service.create()
+    background_tasks.add_task(service.run, edition_id)
+    with SessionLocal() as session:
+        edition = session.get(RadarEdition, edition_id)
+        if edition is None:
+            raise HTTPException(status_code=500, detail="failed to create radar edition")
+        return _edition_summary(edition)
+
+
+@router.get(
+    "/radar-editions/{edition_id}", response_model=RadarEditionSummary, tags=["radar"]
+)
+def radar_edition(edition_id: UUID, session: SessionDependency) -> RadarEditionSummary:
+    edition = session.get(RadarEdition, edition_id)
+    if edition is None:
+        raise HTTPException(status_code=404, detail="radar edition not found")
+    return _edition_summary(edition)
 
 
 @router.get("/articles/{article_id}", response_model=ArticleDetail, tags=["articles"])
@@ -168,13 +216,22 @@ def _analysis_job_status(
 @router.get("/topics", response_model=TopicList, tags=["topics"])
 def topics(
     session: SessionDependency,
+    edition: UUID | None = None,
     date_from: DateFilter = None,
     date_to: DateFilter = None,
     source: SourceFilter = None,
     importance_min: ImportanceFilter = None,
     open_source_status: OpenSourceStatus | None = None,
 ) -> TopicList:
-    filters = _filters(date_from, date_to, source, None, importance_min, open_source_status)
+    filters = _filters(
+        date_from,
+        date_to,
+        source,
+        None,
+        importance_min,
+        open_source_status,
+        edition,
+    )
     started = perf_counter()
     items = topic_summaries(session, filters)
     return TopicList(items=items, query_ms=_elapsed_ms(started))
@@ -281,16 +338,30 @@ def _filters(
     category: TechnicalCategory | None,
     importance_min: float | None,
     open_source_status: OpenSourceStatus | None,
+    edition_id: UUID | None = None,
 ) -> ArticleFilters:
     if date_from is not None and date_to is not None and date_from > date_to:
         raise HTTPException(status_code=422, detail="date_from must not be after date_to")
     return ArticleFilters(
+        edition_id=edition_id,
         date_from=date_from,
         date_to=date_to,
         source=source,
         category=category,
         importance_min=importance_min,
         open_source_status=open_source_status,
+    )
+
+
+def _edition_summary(edition: RadarEdition) -> RadarEditionSummary:
+    return RadarEditionSummary(
+        id=edition.id,
+        captured_at=edition.captured_at,
+        finished_at=edition.finished_at,
+        status=edition.status,
+        article_count=edition.article_count,
+        source_results=edition.source_results,
+        error_summary=edition.error_summary,
     )
 
 

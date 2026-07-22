@@ -121,18 +121,20 @@ docker compose exec backend python -m app.sources.hugging_face.sample --limit 3 
 作者、组织和数据集标签筛选。设置 `HF_TOKEN` 可使用认证请求；详细游标、限流和异常隔离
 规则见 [`backend/docs/hugging-face-collector.md`](backend/docs/hugging-face-collector.md)。
 
-## 统一采集与定时调度
+## 手动生成雷达期次
 
-手工触发任一已注册来源（`arxiv`、`github-releases`、`hugging-face`）：
+首页的“手动抓取新一期”会依次采集已注册来源，完成规范化、去重和低成本概览，
+并保存为不可变的雷达期次。首页日期选择器使用手动抓取时间，不使用技术发布时间；
+技术发布时间仍作为文章元数据显示。
+
+也可以仅调试单个来源：
 
 ```bash
 docker compose exec backend python -m app.cli collect --source arxiv --limit 3
 ```
 
-Compose 中的 `scheduler` 服务按 [`backend/config/schedules.json`](backend/config/schedules.json)
-自动注册 interval/cron 任务。统一运行器记录 `FetchRun` 状态和统计，使用指数退避重试，并以
-PostgreSQL 来源级 advisory lock 阻止跨进程并发。配置和运行记录查询见
-[`backend/docs/collection-scheduler.md`](backend/docs/collection-scheduler.md)。
+Compose 不启动定时采集服务。统一运行器仍记录 `FetchRun` 状态和统计，使用指数退避重试，
+并以 PostgreSQL 来源级 advisory lock 阻止并发抓取。
 
 ## 资讯规范化、去重与事件聚类
 

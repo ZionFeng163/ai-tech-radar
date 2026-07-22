@@ -2,6 +2,7 @@ import type {
   ArticleDetail,
   ArticlePage,
   OpenSourceStatus,
+  RadarEditionList,
   SearchPage,
   TechnicalCategory,
   TopicList,
@@ -24,6 +25,7 @@ export interface ArticleQuery {
   cursor?: string;
   dateFrom?: string;
   dateTo?: string;
+  edition?: string;
   importanceMin?: string;
   limit?: number;
   openSourceStatus?: OpenSourceStatus;
@@ -59,6 +61,7 @@ export function getArticles(query: ArticleQuery = {}): Promise<ArticlePage> {
       cursor: query.cursor,
       date_from: query.dateFrom,
       date_to: query.dateTo,
+      edition: query.edition,
       importance_min: query.importanceMin,
       limit: query.limit,
       open_source_status: query.openSourceStatus,
@@ -71,8 +74,12 @@ export function getArticle(id: string): Promise<ArticleDetail> {
   return apiFetch<ArticleDetail>(`/articles/${encodeURIComponent(id)}`);
 }
 
-export function getTopics(): Promise<TopicList> {
-  return apiFetch<TopicList>("/topics");
+export function getTopics(query: ArticleQuery = {}): Promise<TopicList> {
+  return apiFetch<TopicList>(`/topics${queryString({ edition: query.edition })}`);
+}
+
+export function getRadarEditions(): Promise<RadarEditionList> {
+  return apiFetch<RadarEditionList>("/radar-editions");
 }
 
 export function searchArticles(

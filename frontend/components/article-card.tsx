@@ -25,7 +25,7 @@ export function ArticleCard({ article, featured = false, index }: ArticleCardPro
         <div className="article-meta">
           <span>{kindLabels[article.kind]}</span>
           <span>{category}</span>
-          <time dateTime={article.published_at}>{formatDate(article.published_at)}</time>
+          <time dateTime={article.published_at}>技术发布 · {formatDate(article.published_at)}</time>
         </div>
         <h2>
           <Link href={`/articles/${article.id}`}>{article.title}</Link>

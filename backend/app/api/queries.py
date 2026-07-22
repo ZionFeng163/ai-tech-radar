@@ -33,11 +33,12 @@ from app.api.schemas import (
     TopicSummary,
 )
 from app.domain import ArticleKind
-from app.models import Article, RawItem, Source
+from app.models import Article, RawItem, Source, radar_edition_articles
 
 
 @dataclass(frozen=True, slots=True)
 class ArticleFilters:
+    edition_id: UUID | None = None
     date_from: date | None = None
     date_to: date | None = None
     source: str | None = None
@@ -49,7 +50,9 @@ class ArticleFilters:
 
 
 def article_predicates(filters: ArticleFilters) -> list[ColumnElement[bool]]:
-    predicates: list[ColumnElement[bool]] = [_public_signal_predicate()]
+    predicates: list[ColumnElement[bool]] = [_public_signal_predicate(filters.edition_id)]
+    if filters.edition_id is not None:
+        predicates.append(_edition_membership(Article.id, filters.edition_id))
     if filters.date_from is not None:
         predicates.append(
             Article.published_at >= datetime.combine(filters.date_from, time.min, tzinfo=UTC)
@@ -88,34 +91,48 @@ def _quality_predicates(article: Any) -> tuple[ColumnElement[bool], ...]:
     )
 
 
-def _public_signal_predicate() -> ColumnElement[bool]:
+def _edition_membership(article_id: Any, edition_id: UUID) -> ColumnElement[bool]:
+    return exists(
+        select(1)
+        .select_from(radar_edition_articles)
+        .where(
+            radar_edition_articles.c.article_id == article_id,
+            radar_edition_articles.c.edition_id == edition_id,
+        )
+    )
+
+
+def _public_signal_predicate(edition_id: UUID | None = None) -> ColumnElement[bool]:
     """Expose only analyzed signals and one representative per event cluster."""
 
     peer = aliased(Article)
-    newer_public_peer = exists(
-        select(1).where(
+    peer_conditions: list[ColumnElement[bool]] = [
             peer.event_cluster_id == Article.event_cluster_id,
             *_quality_predicates(peer),
             or_(
                 peer.published_at > Article.published_at,
                 and_(peer.published_at == Article.published_at, peer.id > Article.id),
             ),
-        )
-    )
+    ]
+    if edition_id is not None:
+        peer_conditions.append(_edition_membership(peer.id, edition_id))
+    newer_public_peer = exists(select(1).where(*peer_conditions))
     return and_(
         *_quality_predicates(Article),
         or_(Article.event_cluster_id.is_(None), ~newer_public_peer),
-        _latest_repository_release_predicate(),
+        _latest_repository_release_predicate(edition_id),
     )
 
 
-def _latest_repository_release_predicate() -> ColumnElement[bool]:
+def _latest_repository_release_predicate(
+    edition_id: UUID | None = None,
+) -> ColumnElement[bool]:
     current_raw = aliased(RawItem)
     peer_raw = aliased(RawItem)
     peer_article = aliased(Article)
     current_repository = current_raw.source_metadata["repository"]["full_name"].as_string()
     peer_repository = peer_raw.source_metadata["repository"]["full_name"].as_string()
-    newer_release = exists(
+    release_query = (
         select(1)
         .select_from(current_raw)
         .join(peer_raw, peer_repository == current_repository)
@@ -133,6 +150,9 @@ def _latest_repository_release_predicate() -> ColumnElement[bool]:
             ),
         )
     )
+    if edition_id is not None:
+        release_query = release_query.where(_edition_membership(peer_article.id, edition_id))
+    newer_release = exists(release_query)
     return or_(Article.kind != ArticleKind.RELEASE, ~newer_release)
 
 

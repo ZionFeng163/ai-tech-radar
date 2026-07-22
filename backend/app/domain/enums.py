@@ -31,3 +31,9 @@ class AnalysisRunStatus(StrEnum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+
+
+class RadarEditionStatus(StrEnum):
+    RUNNING = "running"
+    COMPLETE = "complete"
+    FAILED = "failed"

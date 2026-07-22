@@ -8,6 +8,7 @@ from app.models.article import (
     article_authors,
     article_tags,
 )
+from app.models.edition import RadarEdition, radar_edition_articles
 from app.models.source import FetchRun, RawItem, Source
 
 __all__ = [
@@ -18,8 +19,10 @@ __all__ = [
     "EventCluster",
     "FetchRun",
     "RawItem",
+    "RadarEdition",
     "Source",
     "Tag",
     "article_authors",
     "article_tags",
+    "radar_edition_articles",
 ]

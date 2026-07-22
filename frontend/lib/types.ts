@@ -81,6 +81,20 @@ export interface ArticlePage {
   page: PageMetadata;
 }
 
+export interface RadarEdition {
+  id: string;
+  captured_at: string;
+  finished_at: string | null;
+  status: "running" | "complete" | "failed";
+  article_count: number;
+  source_results: Array<Record<string, unknown>>;
+  error_summary: string | null;
+}
+
+export interface RadarEditionList {
+  items: RadarEdition[];
+}
+
 export interface SearchResult extends ArticleSummary {
   search_score: number;
 }

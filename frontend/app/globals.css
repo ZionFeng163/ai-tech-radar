@@ -64,6 +64,11 @@ button, input, select { font: inherit; }
 .article-card h2 a:hover { background: linear-gradient(transparent 62%, var(--acid) 62%); }
 .article-summary { max-width: 780px; margin: 0; color: #4e5048; font-size: .94rem; line-height: 1.65; }
 .article-footer { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-top: auto; padding-top: 28px; }
+.edition-controls { display: flex; align-items: end; gap: 16px; padding-top: 22px; padding-bottom: 8px; }
+.edition-controls label { display: grid; gap: 8px; min-width: 290px; }
+.edition-controls label span { color: var(--muted); font: 700 .68rem/1 ui-monospace, monospace; text-transform: uppercase; }
+.edition-controls select { min-height: 44px; border: 1px solid var(--ink); background: var(--paper); padding: 0 12px; color: var(--ink); }
+.edition-controls p { margin: 0 0 10px; color: #a33; }
 .source-name { font-size: .76rem; font-weight: 750; }
 .score { min-width: 210px; display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; align-items: end; font: 700 .65rem/1 ui-monospace, monospace; text-transform: uppercase; }
 .score strong { font-size: 1.1rem; }
@@ -185,6 +190,8 @@ button, input, select { font: inherit; }
   .article-card-featured { padding-inline: 18px; }
   .article-card-featured .article-card-index { padding-left: 0; }
   .article-footer { display: grid; }
+  .edition-controls { display: grid; align-items: stretch; }
+  .edition-controls label { min-width: 0; }
   .score { width: 100%; }
   .topic-grid { grid-template-columns: 1fr; }
   .detail-scoreboard { grid-template-columns: 1fr; }

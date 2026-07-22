@@ -14,9 +14,18 @@ docker compose exec backend python -m app.cli collect --source arxiv
 调试时可用 `--limit 3` 限制本次最多采集三条；`--max-attempts` 和
 `--backoff-seconds` 可覆盖默认的三次指数退避重试。
 
-## 定时运行
+## 手动雷达期次
 
-`scheduler` 服务读取 [`../config/schedules.json`](../config/schedules.json)。每个来源可使用：
+产品不启动定时采集任务。用户从首页点击“手动抓取新一期”后，后端创建一个
+`RadarEdition`，依次抓取已注册来源、规范化本次原始条目，并只为缺少概览的文章调用模型。
+完成后，文章通过多对多关系固化到该期次中，后续抓取不会改变历史期次。
+
+首页日期选择器展示 `RadarEdition.captured_at`，这是用户手动发起抓取的时间，
+不是文章或技术的 `published_at`。
+
+## 已停用的调度实现
+
+旧调度实现仍保留用于历史测试，但 Compose 和 CLI 均不启动它。旧配置支持：
 
 - `trigger: interval` 与 `interval_minutes`
 - `trigger: cron` 与标准五段 cron 表达式

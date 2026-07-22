@@ -2,6 +2,7 @@ import hashlib
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from typing import cast
+from uuid import UUID
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -84,7 +85,9 @@ class NormalizationPipeline:
     def __init__(self, config: ProcessingConfig | None = None) -> None:
         self.config = config or ProcessingConfig()
 
-    def run(self, *, limit: int | None = None) -> ProcessingSummary:
+    def run(
+        self, *, limit: int | None = None, raw_item_ids: list[UUID] | None = None
+    ) -> ProcessingSummary:
         if limit is not None and limit < 1:
             raise ValueError("limit must be at least 1")
         summary = ProcessingSummary()
@@ -100,6 +103,8 @@ class NormalizationPipeline:
                     .order_by(RawItem.published_at.asc().nulls_last(), RawItem.fetched_at.asc())
                     .with_for_update(skip_locked=True)
                 )
+                if raw_item_ids is not None:
+                    statement = statement.where(RawItem.id.in_(raw_item_ids))
                 if limit is not None:
                     statement = statement.limit(limit)
                 for raw_item in session.scalars(statement):

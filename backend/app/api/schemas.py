@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.analysis.schema import OpenSourceStatus, SignalType, TechnicalCategory
-from app.domain import ArticleKind
+from app.domain import ArticleKind, RadarEditionStatus
 
 
 class SourceReference(BaseModel):
@@ -79,6 +79,24 @@ class ArticlePage(BaseModel):
 
     items: list[ArticleSummary]
     page: PageMetadata
+
+
+class RadarEditionSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: UUID
+    captured_at: datetime
+    finished_at: datetime | None
+    status: RadarEditionStatus
+    article_count: int = Field(ge=0)
+    source_results: list[dict[str, object]]
+    error_summary: str | None
+
+
+class RadarEditionList(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    items: list[RadarEditionSummary]
 
 
 class SearchResult(ArticleSummary):

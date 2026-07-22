@@ -21,7 +21,15 @@ def test_openapi_exposes_stable_article_query_contract() -> None:
     client = TestClient(app)
     schema = client.get("/openapi.json").json()
 
-    assert {"/articles", "/articles/{article_id}", "/topics", "/daily-brief", "/search"} <= {
+    assert {
+        "/articles",
+        "/articles/{article_id}",
+        "/topics",
+        "/daily-brief",
+        "/search",
+        "/radar-editions",
+        "/radar-editions/{edition_id}",
+    } <= {
         path for path in schema["paths"]
     }
     article_parameters = {
@@ -30,6 +38,7 @@ def test_openapi_exposes_stable_article_query_contract() -> None:
     assert {
         "date_from",
         "date_to",
+        "edition",
         "source",
         "category",
         "importance_min",

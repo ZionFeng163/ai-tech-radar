@@ -15,7 +15,6 @@ from app.analysis.evaluation import (
 from app.analysis.schema import strict_json_schema
 from app.collection.registry import SourceRegistry
 from app.collection.runner import CollectionRunner
-from app.collection.scheduler import DEFAULT_SCHEDULE_PATH, serve_scheduler
 from app.processing import NormalizationPipeline, ProcessingConfig
 from app.processing.config import DEFAULT_PROCESSING_CONFIG_PATH
 from app.processing.evaluation import DEFAULT_EVALUATION_PATH, evaluate
@@ -30,9 +29,6 @@ def build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--limit", type=int, help="optional maximum number of items")
     collect.add_argument("--max-attempts", type=int, default=3)
     collect.add_argument("--backoff-seconds", type=float, default=1.0)
-
-    scheduler = subparsers.add_parser("scheduler", help="run the collection scheduler")
-    scheduler.add_argument("--config", type=Path, default=DEFAULT_SCHEDULE_PATH)
 
     normalize = subparsers.add_parser(
         "normalize", help="normalize raw items, deduplicate articles, and cluster events"
@@ -76,8 +72,6 @@ def main() -> None:
     args = build_parser().parse_args()
     if args.command == "collect":
         asyncio.run(_collect(args))
-    elif args.command == "scheduler":
-        asyncio.run(serve_scheduler(args.config))
     elif args.command == "normalize":
         config = ProcessingConfig.from_file(args.config)
         result = (
