@@ -4,7 +4,8 @@ from typing import Annotated
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from sqlalchemy import select
 
 from app.analysis import AnalysisConfig, AnalysisPipeline
 from app.analysis.schema import OpenSourceStatus, TechnicalCategory
@@ -23,6 +24,7 @@ from app.api.queries import (
     topic_summaries,
 )
 from app.api.schemas import (
+    AnalysisJobStatus,
     ArticleDetail,
     ArticlePage,
     DailyBrief,
@@ -31,6 +33,8 @@ from app.api.schemas import (
     TopicList,
 )
 from app.config import get_settings
+from app.domain import AnalysisRunStatus
+from app.models import AnalysisRun
 
 router = APIRouter()
 
@@ -84,31 +88,81 @@ def article_by_id(article_id: UUID, session: SessionDependency) -> ArticleDetail
 
 @router.post(
     "/articles/{article_id}/deep-analysis",
-    response_model=ArticleDetail,
+    response_model=AnalysisJobStatus,
+    status_code=status.HTTP_202_ACCEPTED,
     tags=["articles"],
 )
 async def generate_deep_analysis(
     article_id: UUID,
     session: SessionDependency,
-) -> ArticleDetail:
+    background_tasks: BackgroundTasks,
+) -> AnalysisJobStatus:
     article = get_article(session, article_id)
     if article is None:
         raise HTTPException(status_code=404, detail="article not found")
-    if article.analysis.get("depth") != "deep":
-        try:
-            succeeded, attempts = await AnalysisPipeline(
-                AnalysisConfig.from_file(), depth="deep"
-            ).run_article(article_id)
-        except (ValueError, LookupError) as exc:
-            raise HTTPException(status_code=503, detail="deep analysis unavailable") from exc
-        if not succeeded:
-            status = 409 if attempts == 0 else 502
-            raise HTTPException(status_code=status, detail="deep analysis did not complete")
-        session.expire_all()
-        article = get_article(session, article_id)
-        if article is None:
-            raise HTTPException(status_code=404, detail="article not found")
-    return article_detail(article)
+    current = _analysis_job_status(session, article_id, article.analysis)
+    if current.status in {"complete", "running"}:
+        return current
+    background_tasks.add_task(_run_deep_analysis, article_id)
+    return AnalysisJobStatus(
+        article_id=article_id,
+        status="queued",
+        analysis_depth="brief",
+    )
+
+
+@router.get(
+    "/articles/{article_id}/analysis-status",
+    response_model=AnalysisJobStatus,
+    tags=["articles"],
+)
+def analysis_status(article_id: UUID, session: SessionDependency) -> AnalysisJobStatus:
+    article = get_article(session, article_id)
+    if article is None:
+        raise HTTPException(status_code=404, detail="article not found")
+    return _analysis_job_status(session, article_id, article.analysis)
+
+
+async def _run_deep_analysis(article_id: UUID) -> None:
+    try:
+        await AnalysisPipeline(AnalysisConfig.from_file(), depth="deep").run_article(article_id)
+    except (ValueError, LookupError):
+        return
+
+
+def _analysis_job_status(
+    session: SessionDependency,
+    article_id: UUID,
+    analysis: dict[str, object],
+) -> AnalysisJobStatus:
+    if analysis.get("depth") == "deep":
+        return AnalysisJobStatus(
+            article_id=article_id,
+            status="complete",
+            analysis_depth="deep",
+        )
+    latest = session.scalar(
+        select(AnalysisRun)
+        .where(
+            AnalysisRun.article_id == article_id,
+            AnalysisRun.prompt_version.endswith("-deep"),
+        )
+        .order_by(AnalysisRun.started_at.desc())
+        .limit(1)
+    )
+    if latest is None:
+        job_status = "idle"
+    elif latest.status is AnalysisRunStatus.RUNNING:
+        job_status = "running"
+    elif latest.status is AnalysisRunStatus.FAILED:
+        job_status = "failed"
+    else:
+        job_status = "idle"
+    return AnalysisJobStatus(
+        article_id=article_id,
+        status=job_status,
+        analysis_depth="brief",
+    )
 
 
 @router.get("/topics", response_model=TopicList, tags=["topics"])

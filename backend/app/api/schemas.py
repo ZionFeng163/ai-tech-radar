@@ -52,6 +52,14 @@ class ArticleDetail(ArticleSummary):
     analysis_depth: Literal["brief", "deep"]
 
 
+class AnalysisJobStatus(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    article_id: UUID
+    status: Literal["idle", "queued", "running", "complete", "failed"]
+    analysis_depth: Literal["brief", "deep"]
+
+
 class PageMetadata(BaseModel):
     model_config = ConfigDict(frozen=True)
 
