@@ -5,11 +5,10 @@ import type { ArticleSummary } from "@/lib/types";
 
 interface ArticleCardProps {
   article: ArticleSummary;
-  featured?: boolean;
   index?: number;
 }
 
-export function ArticleCard({ article, featured = false, index }: ArticleCardProps) {
+export function ArticleCard({ article, index }: ArticleCardProps) {
   const category = article.primary_category
     ? categoryLabels[article.primary_category]
     : "待分类";
@@ -17,9 +16,9 @@ export function ArticleCard({ article, featured = false, index }: ArticleCardPro
   const deck = article.novelty_summary ?? article.summary;
 
   return (
-    <article className={featured ? "article-card article-card-featured" : "article-card"}>
+    <article className="article-card">
       <div className="article-card-index" aria-hidden="true">
-        {featured ? "FEATURED" : String((index ?? 0) + 1).padStart(2, "0")}
+        {String((index ?? 0) + 1).padStart(2, "0")}
       </div>
       <div className="article-card-body">
         <div className="article-meta">

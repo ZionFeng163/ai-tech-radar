@@ -41,6 +41,9 @@ export function FilterBar({
         <span>来源</span>
         <select name="source" defaultValue={source ?? ""}>
           <option value="">全部来源</option>
+          <option value="hacker-news">Hacker News</option>
+          <option value="dev-community">DEV Community</option>
+          <option value="lobsters">Lobsters</option>
           <option value="arxiv">arXiv</option>
           <option value="github-releases">GitHub Releases</option>
           <option value="hugging-face">Hugging Face</option>

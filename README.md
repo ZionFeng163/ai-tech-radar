@@ -127,6 +127,15 @@ docker compose exec backend python -m app.sources.hugging_face.sample --limit 3 
 并保存为不可变的雷达期次。首页日期选择器使用手动抓取时间，不使用技术发布时间；
 技术发布时间仍作为文章元数据显示。
 
+默认优先抓取经过社区排序的免费来源：
+
+- Hacker News Top Stories：排名、投票数和评论数。
+- DEV Community 近 7 日热门：摘要、标签、公开反应数和评论数。
+- Lobsters 前台 RSS：聚焦计算机主题的社区投票流。
+
+同时少量保留 GitHub Releases、arXiv 和 Hugging Face 作为原始技术信号。社区来源的
+互动数据会进入快速概览的热度判断，不需要密钥；单次手动抓取对原始来源使用更小配额。
+
 也可以仅调试单个来源：
 
 ```bash

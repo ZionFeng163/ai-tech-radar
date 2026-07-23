@@ -17,8 +17,23 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ManualRadarService:
-    def __init__(self, *, items_per_source: int = 20) -> None:
+    DEFAULT_SOURCE_LIMITS = {
+        "hacker-news": 15,
+        "dev-community": 12,
+        "lobsters": 12,
+        "github-releases": 8,
+        "arxiv": 5,
+        "hugging-face": 5,
+    }
+
+    def __init__(
+        self,
+        *,
+        items_per_source: int = 10,
+        source_limits: dict[str, int] | None = None,
+    ) -> None:
         self.items_per_source = items_per_source
+        self.source_limits = source_limits or self.DEFAULT_SOURCE_LIMITS
 
     def create(self) -> UUID:
         with SessionLocal() as session:
@@ -37,7 +52,7 @@ class ManualRadarService:
                 try:
                     result = await runner.run(
                         source_slug,
-                        limit=self.items_per_source,
+                        limit=self.source_limits.get(source_slug, self.items_per_source),
                         trigger=f"manual-edition:{edition_id}",
                     )
                 except Exception as exc:

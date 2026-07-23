@@ -17,7 +17,14 @@ from app.collection.scheduler import (
 
 
 def test_registry_contains_all_mvp_sources() -> None:
-    assert SourceRegistry().slugs == ("arxiv", "github-releases", "hugging-face")
+    assert SourceRegistry().slugs == (
+        "hacker-news",
+        "dev-community",
+        "lobsters",
+        "github-releases",
+        "arxiv",
+        "hugging-face",
+    )
 
 
 def test_source_lock_key_is_stable_signed_bigint() -> None:

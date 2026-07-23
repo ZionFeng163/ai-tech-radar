@@ -32,7 +32,7 @@ export default async function Home({
       cursor: filters.cursor,
       edition: selectedEdition?.id,
       importanceMin: filters.importance_min,
-      limit: 9,
+      limit: 18,
       openSourceStatus: filters.open_source_status,
       source: filters.source,
     }),
@@ -41,7 +41,7 @@ export default async function Home({
   const rankedArticles = [...articlePage.items].sort(
     (left, right) => radarScore(right) - radarScore(left),
   );
-  const [featured, ...articles] = rankedArticles;
+  const articles = rankedArticles;
   const averageImportance = topicList.items.length
     ? topicList.items.reduce((sum, topic) => sum + (topic.average_importance ?? 0), 0) /
       topicList.items.length
@@ -93,9 +93,8 @@ export default async function Home({
           source={filters.source}
         />
 
-        {featured ? (
+        {articles.length ? (
           <div className="article-stream">
-            <ArticleCard article={featured} featured />
             {articles.map((article, index) => (
               <ArticleCard article={article} index={index} key={article.id} />
             ))}

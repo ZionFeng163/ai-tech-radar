@@ -5,8 +5,11 @@ from pathlib import Path
 
 from app.sources.arxiv import ArxivAdapter, ArxivConfig
 from app.sources.base import SourceAdapter, SourceDescriptor
+from app.sources.dev_community import DevCommunityAdapter
 from app.sources.github_releases import GitHubReleasesAdapter, GitHubReleasesConfig
+from app.sources.hacker_news import HackerNewsAdapter
 from app.sources.hugging_face import HuggingFaceAdapter, HuggingFaceConfig
+from app.sources.lobsters import LobstersAdapter
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 GITHUB_CONFIG_PATH = BACKEND_ROOT / "config" / "sources" / "github-releases.json"
@@ -63,9 +66,43 @@ def _hugging_face_source() -> RegisteredSource:
     )
 
 
+def _hacker_news_source() -> RegisteredSource:
+    return RegisteredSource(
+        descriptor=HackerNewsAdapter.descriptor,
+        persisted_config={"feed": "topstories", "curation": "community-ranked"},
+        page_size=20,
+        adapter_factory=HackerNewsAdapter,
+    )
+
+
+def _dev_community_source() -> RegisteredSource:
+    return RegisteredSource(
+        descriptor=DevCommunityAdapter.descriptor,
+        persisted_config={"window_days": 7, "curation": "popularity-ranked"},
+        page_size=20,
+        adapter_factory=DevCommunityAdapter,
+    )
+
+
+def _lobsters_source() -> RegisteredSource:
+    return RegisteredSource(
+        descriptor=LobstersAdapter.descriptor,
+        persisted_config={"feed": "front-page-rss", "curation": "community-ranked"},
+        page_size=20,
+        adapter_factory=LobstersAdapter,
+    )
+
+
 class SourceRegistry:
     def __init__(self, sources: list[RegisteredSource] | None = None) -> None:
-        registered = sources or [_arxiv_source(), _github_source(), _hugging_face_source()]
+        registered = sources or [
+            _hacker_news_source(),
+            _dev_community_source(),
+            _lobsters_source(),
+            _github_source(),
+            _arxiv_source(),
+            _hugging_face_source(),
+        ]
         self._sources = {source.descriptor.slug: source for source in registered}
 
     @property
