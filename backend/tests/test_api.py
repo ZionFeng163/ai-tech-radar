@@ -295,3 +295,16 @@ def test_article_detail_topics_daily_brief_and_search(seeded_api: SeededAPI) -> 
 
     missing = seeded_api.client.get(f"/articles/{uuid4()}")
     assert missing.status_code == 404
+
+
+def test_each_article_has_one_bounded_writing_project(seeded_api: SeededAPI) -> None:
+    path = f"/articles/{seeded_api.article_ids[0]}/writing-project"
+
+    first = seeded_api.client.post(path)
+    second = seeded_api.client.post(path)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["id"] == second.json()["id"]
+    assert first.json()["angle_options"] == []
+    assert first.json()["draft_content"] is None

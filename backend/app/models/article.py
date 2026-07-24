@@ -28,6 +28,7 @@ from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin, enum_values, 
 if TYPE_CHECKING:
     from app.models.edition import RadarEdition
     from app.models.source import RawItem
+    from app.models.writing import WritingProject
 
 
 article_authors = Table(
@@ -137,6 +138,9 @@ class Article(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     analysis_runs: Mapped[list[AnalysisRun]] = relationship(
         back_populates="article", cascade="all, delete-orphan"
+    )
+    writing_project: Mapped[WritingProject | None] = relationship(
+        back_populates="article", cascade="all, delete-orphan", uselist=False
     )
     authors: Mapped[list[Author]] = relationship(
         secondary=article_authors, back_populates="articles"

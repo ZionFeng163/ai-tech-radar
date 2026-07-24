@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.analysis.schema import OpenSourceStatus, SignalType, TechnicalCategory
 from app.domain import ArticleKind, RadarEditionStatus
+from app.writing.schema import HumanInput, WritingAngle, WritingFormat, WritingReview
 
 
 class SourceReference(BaseModel):
@@ -63,6 +64,36 @@ class AnalysisJobStatus(BaseModel):
     article_id: UUID
     status: Literal["idle", "queued", "running", "complete", "failed"]
     analysis_depth: Literal["brief", "deep"]
+
+
+class WritingDraftRequest(BaseModel):
+    angle_id: str = Field(min_length=1, max_length=50)
+    output_format: WritingFormat = "thread"
+    human_input: HumanInput = Field(default_factory=HumanInput)
+
+
+class WritingDraftUpdate(BaseModel):
+    draft_content: str = Field(min_length=1, max_length=30_000)
+
+
+class WritingProjectResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    article_id: UUID
+    status: str
+    angle_options: list[WritingAngle]
+    selected_angle_id: str | None
+    output_format: WritingFormat
+    human_input: HumanInput
+    draft_content: str | None
+    review: WritingReview | None
+    provider: str | None
+    model: str | None
+    prompt_version: str | None
+    error_summary: str | None
+    created_at: datetime
+    updated_at: datetime
 
 
 class PageMetadata(BaseModel):

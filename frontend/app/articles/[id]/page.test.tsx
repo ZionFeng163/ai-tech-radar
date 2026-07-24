@@ -53,6 +53,10 @@ describe("ArticlePage", () => {
 
     render(await ArticlePage({ params: Promise.resolve({ id: "article-1" }) }));
 
+    expect(screen.getByRole("link", { name: "进入写作工作台 →" })).toHaveAttribute(
+      "href",
+      "/articles/article-1/write",
+    );
     expect(screen.getAllByText("Repeated code block")).toHaveLength(2);
     expect(
       consoleError.mock.calls.some((call) => String(call[0]).includes("same key")),

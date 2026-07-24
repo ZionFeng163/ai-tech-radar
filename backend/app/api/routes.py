@@ -5,9 +5,11 @@ from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.analysis import AnalysisConfig, AnalysisPipeline
+from app.analysis.provider import ProviderError
 from app.analysis.schema import OpenSourceStatus, TechnicalCategory
 from app.api.cursor import PageCursor, decode_cursor, encode_cursor
 from app.api.dependencies import SessionDependency
@@ -34,13 +36,17 @@ from app.api.schemas import (
     RadarEditionSummary,
     SearchPage,
     TopicList,
+    WritingDraftRequest,
+    WritingDraftUpdate,
+    WritingProjectResponse,
 )
 from app.config import get_settings
 from app.db import SessionLocal
 from app.domain import AnalysisRunStatus
 from app.editions import ManualRadarService
 from app.maintenance import RetentionCleanupService
-from app.models import AnalysisRun, RadarEdition
+from app.models import AnalysisRun, RadarEdition, WritingProject
+from app.writing import WritingConfig, WritingService
 
 router = APIRouter()
 
@@ -163,6 +169,121 @@ def article_by_id(article_id: UUID, session: SessionDependency) -> ArticleDetail
     if article is None:
         raise HTTPException(status_code=404, detail="article not found")
     return article_detail(article)
+
+
+@router.post(
+    "/articles/{article_id}/writing-project",
+    response_model=WritingProjectResponse,
+    tags=["writing"],
+)
+def create_writing_project(
+    article_id: UUID, session: SessionDependency
+) -> WritingProjectResponse:
+    try:
+        project = WritingService.get_or_create(session, article_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _writing_project_response(project)
+
+
+@router.get(
+    "/writing-projects/{project_id}",
+    response_model=WritingProjectResponse,
+    tags=["writing"],
+)
+def writing_project(project_id: UUID, session: SessionDependency) -> WritingProjectResponse:
+    try:
+        project = WritingService.get(session, project_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _writing_project_response(project)
+
+
+@router.patch(
+    "/writing-projects/{project_id}",
+    response_model=WritingProjectResponse,
+    tags=["writing"],
+)
+def update_writing_draft(
+    project_id: UUID,
+    request: WritingDraftUpdate,
+    session: SessionDependency,
+) -> WritingProjectResponse:
+    try:
+        project = WritingService.save_draft(session, project_id, request.draft_content)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _writing_project_response(project)
+
+
+@router.post(
+    "/writing-projects/{project_id}/angles",
+    response_model=WritingProjectResponse,
+    tags=["writing"],
+)
+async def generate_writing_angles(
+    project_id: UUID, session: SessionDependency
+) -> WritingProjectResponse:
+    service = _writing_service()
+    try:
+        project = await service.generate_angles(session, project_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ProviderError, ValidationError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail=f"角度生成失败：{exc}") from exc
+    return _writing_project_response(project)
+
+
+@router.post(
+    "/writing-projects/{project_id}/draft",
+    response_model=WritingProjectResponse,
+    tags=["writing"],
+)
+async def generate_writing_draft(
+    project_id: UUID,
+    request: WritingDraftRequest,
+    session: SessionDependency,
+) -> WritingProjectResponse:
+    service = _writing_service()
+    try:
+        project = await service.generate_draft(
+            session,
+            project_id,
+            angle_id=request.angle_id,
+            output_format=request.output_format,
+            human_input=request.human_input,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"正文生成失败：{exc}") from exc
+    return _writing_project_response(project)
+
+
+@router.post(
+    "/writing-projects/{project_id}/review",
+    response_model=WritingProjectResponse,
+    tags=["writing"],
+)
+async def review_writing_draft(
+    project_id: UUID, session: SessionDependency
+) -> WritingProjectResponse:
+    service = _writing_service()
+    try:
+        project = await service.review_draft(session, project_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValidationError as exc:
+        raise HTTPException(status_code=502, detail=f"审校失败：{exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"审校失败：{exc}") from exc
+    return _writing_project_response(project)
 
 
 @router.post(
@@ -394,6 +515,35 @@ def _edition_summary(edition: RadarEdition) -> RadarEditionSummary:
         source_results=edition.source_results,
         progress=edition.progress,
         error_summary=edition.error_summary,
+    )
+
+
+def _writing_service() -> WritingService:
+    try:
+        return WritingService(WritingConfig.from_file())
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=f"写作模型不可用：{exc}") from exc
+
+
+def _writing_project_response(project: WritingProject) -> WritingProjectResponse:
+    return WritingProjectResponse.model_validate(
+        {
+            "id": project.id,
+            "article_id": project.article_id,
+            "status": project.status,
+            "angle_options": project.angle_options,
+            "selected_angle_id": project.selected_angle_id,
+            "output_format": project.output_format,
+            "human_input": project.human_input or {},
+            "draft_content": project.draft_content,
+            "review": project.review or None,
+            "provider": project.provider,
+            "model": project.model,
+            "prompt_version": project.prompt_version,
+            "error_summary": project.error_summary,
+            "created_at": project.created_at,
+            "updated_at": project.updated_at,
+        }
     )
 
 

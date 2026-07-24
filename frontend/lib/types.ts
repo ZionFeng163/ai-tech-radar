@@ -141,3 +141,64 @@ export interface TopicList {
   items: TopicSummary[];
   query_ms: number;
 }
+
+export type WritingFormat = "short_post" | "thread" | "article";
+
+export interface HumanInput {
+  core_take: string;
+  personal_observation: string;
+  disagreement: string;
+}
+
+export interface WritingAngle {
+  id: "technical" | "industry" | "practitioner";
+  label: string;
+  thesis: string;
+  signal: string;
+  mechanism: string;
+  change: string;
+  tension: string;
+  evidence: string[];
+  counterargument: string;
+  uncertainty: string;
+  reader_gain: string;
+  recommended_format: WritingFormat;
+  value_score: number;
+}
+
+export interface WritingReviewIssue {
+  category: "fact" | "generic" | "ai_tone" | "logic" | "voice" | "format";
+  severity: "high" | "medium" | "low";
+  quote: string;
+  problem: string;
+  suggestion: string;
+}
+
+export interface WritingReview {
+  verdict: string;
+  thesis_clarity: number;
+  originality: number;
+  technical_clarity: number;
+  human_voice: number;
+  issues: WritingReviewIssue[];
+  strongest_line: string;
+  cut_suggestions: string[];
+}
+
+export interface WritingProject {
+  id: string;
+  article_id: string;
+  status: string;
+  angle_options: WritingAngle[];
+  selected_angle_id: string | null;
+  output_format: WritingFormat;
+  human_input: HumanInput;
+  draft_content: string | null;
+  review: WritingReview | null;
+  provider: string | null;
+  model: string | null;
+  prompt_version: string | null;
+  error_summary: string | null;
+  created_at: string;
+  updated_at: string;
+}

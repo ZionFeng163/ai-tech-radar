@@ -10,6 +10,7 @@ from app.models.article import (
 )
 from app.models.edition import RadarEdition, radar_edition_articles
 from app.models.source import FetchRun, RawItem, Source
+from app.models.writing import WritingProject
 
 __all__ = [
     "Article",
@@ -22,6 +23,7 @@ __all__ = [
     "RadarEdition",
     "Source",
     "Tag",
+    "WritingProject",
     "article_authors",
     "article_tags",
     "radar_edition_articles",

@@ -71,6 +71,12 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
 
         <div className="detail-layout">
           <div className="detail-content">
+            <section className="writing-entry-cta">
+              <p className="section-index">WRITE / TURN SIGNAL INTO AN IDEA</p>
+              <h2>不止读热点，写出你的判断</h2>
+              <p>从三个技术与产业角度中选择一个，补充你的真实观察，再生成短帖、Thread 或 X 长文。</p>
+              <Link className="action-button" href={`/articles/${article.id}/write`}>进入写作工作台 →</Link>
+            </section>
             {article.technical_overview ? (
               <section className="analysis-section">
                 <p className="section-index">01 / QUICK READ</p>

@@ -189,7 +189,9 @@ docker compose exec backend python -m app.cli analyze \
 ## Web 前端
 
 Next.js 前端通过服务端渲染访问查询 API，提供首页信号流、组合筛选、技术分类、全文搜索和
-文章深度分析详情页。Docker 内部使用 `API_URL=http://backend:8000`，浏览器侧公开地址使用
+文章深度分析详情页。热点详情页还提供写作工作台，可先选择技术、产业或实践者角度，加入
+作者真实判断，再生成短帖、Thread 或 X 长文并执行事实与 AI 腔审校。流程、接口和数据边界见
+[`backend/docs/writing-studio.md`](backend/docs/writing-studio.md)。Docker 内部使用 `API_URL=http://backend:8000`，浏览器侧公开地址使用
 `NEXT_PUBLIC_API_URL=http://localhost:8000`；本地启动后访问 http://localhost:3000。
 
 ```bash
