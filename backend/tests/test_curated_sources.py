@@ -34,6 +34,8 @@ def test_hacker_news_adapter_preserves_rank_and_engagement() -> None:
     assert normalized.metadata["score"] == 321
     assert normalized.metadata["comments"] == 87
     assert normalized.metadata["rank"] == 1
+    assert str(normalized.canonical_url) == "https://example.com/compiler"
+    assert str(batch.items[0].url).startswith("https://news.ycombinator.com/item?")
     assert "321 票" in (normalized.content or "")
 
 

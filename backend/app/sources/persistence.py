@@ -68,7 +68,7 @@ def persist_batch(
         statement = insert(RawItem).values(
             source_id=source.id,
             external_id=item.external_id,
-            url=str(item.url),
+            url=str(normalized.canonical_url),
             title=normalized.title,
             body=normalized.content,
             authors=[author.model_dump(mode="json") for author in normalized.authors],
