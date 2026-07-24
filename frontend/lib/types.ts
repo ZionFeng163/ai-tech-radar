@@ -102,6 +102,24 @@ export interface RadarEditionList {
   items: RadarEdition[];
 }
 
+export interface CleanupReport {
+  keep_editions: number;
+  keep_fetch_runs_per_source: number;
+  keep_analysis_runs_per_article: number;
+  blocked: boolean;
+  running_editions: number;
+  running_fetch_runs: number;
+  running_analysis_runs: number;
+  editions: number;
+  articles: number;
+  raw_items: number;
+  fetch_runs: number;
+  analysis_runs: number;
+  authors: number;
+  tags: number;
+  event_clusters: number;
+}
+
 export interface SearchResult extends ArticleSummary {
   search_score: number;
 }

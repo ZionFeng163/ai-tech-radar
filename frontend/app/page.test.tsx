@@ -83,5 +83,6 @@ describe("Home", () => {
       "href",
       "/topics/inference",
     );
+    expect(screen.getByText("数据清理")).toBeInTheDocument();
   });
 });

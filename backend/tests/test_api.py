@@ -29,6 +29,8 @@ def test_openapi_exposes_stable_article_query_contract() -> None:
         "/search",
         "/radar-editions",
         "/radar-editions/{edition_id}",
+        "/maintenance/cleanup-preview",
+        "/maintenance/data",
     } <= {
         path for path in schema["paths"]
     }

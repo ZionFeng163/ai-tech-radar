@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import type { RadarEdition } from "@/lib/types";
+import type { CleanupReport, RadarEdition } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 2_000;
 const MAX_POLLS = 300;
@@ -23,6 +23,11 @@ export function RadarEditionControls({
   const [activeEdition, setActiveEdition] = useState<RadarEdition | null>(
     runningEdition ?? null,
   );
+  const [keepEditions, setKeepEditions] = useState(10);
+  const [cleanupState, setCleanupState] = useState<
+    "idle" | "loading" | "ready" | "done" | "error"
+  >("idle");
+  const [cleanupReport, setCleanupReport] = useState<CleanupReport | null>(null);
   const completed = editions.filter((edition) => edition.status === "complete");
 
   function switchEdition(value: string) {
@@ -70,6 +75,43 @@ export function RadarEditionControls({
     }
   }
 
+  async function previewCleanup() {
+    setCleanupState("loading");
+    try {
+      const response = await fetch(
+        `/api/maintenance/cleanup?keep_editions=${keepEditions}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("preview failed");
+      setCleanupReport((await response.json()) as CleanupReport);
+      setCleanupState("ready");
+    } catch {
+      setCleanupState("error");
+    }
+  }
+
+  async function runCleanup() {
+    if (!cleanupReport || cleanupReport.blocked) return;
+    const confirmed = window.confirm(
+      `将保留最近 ${keepEditions} 期，并永久删除预览中的旧数据。确定继续吗？`,
+    );
+    if (!confirmed) return;
+    setCleanupState("loading");
+    try {
+      const response = await fetch(
+        `/api/maintenance/cleanup?keep_editions=${keepEditions}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) throw new Error("cleanup failed");
+      setCleanupReport((await response.json()) as CleanupReport);
+      setCleanupState("done");
+      router.push("/");
+      router.refresh();
+    } catch {
+      setCleanupState("error");
+    }
+  }
+
   const progress = activeEdition?.progress;
   const progressPercent =
     progress && progress.total > 0
@@ -105,6 +147,48 @@ export function RadarEditionControls({
         </div>
       ) : null}
       {state === "error" ? <p>抓取失败，请查看服务日志后重试。</p> : null}
+      <details className="cleanup-controls">
+        <summary>数据清理</summary>
+        <div className="cleanup-form">
+          <label>
+            <span>保留最近</span>
+            <select
+              value={keepEditions}
+              onChange={(event) => {
+                setKeepEditions(Number(event.target.value));
+                setCleanupState("idle");
+                setCleanupReport(null);
+              }}
+            >
+              <option value={5}>5 期</option>
+              <option value={10}>10 期</option>
+              <option value={20}>20 期</option>
+            </select>
+          </label>
+          <button
+            className="secondary-button"
+            disabled={state === "running" || cleanupState === "loading"}
+            onClick={previewCleanup}
+          >
+            {cleanupState === "loading" ? "计算中…" : "预览清理"}
+          </button>
+        </div>
+        {cleanupReport ? (
+          <div className="cleanup-preview" role="status">
+            <strong>{cleanupState === "done" ? "清理完成" : "预计清理"}</strong>
+            <span>{cleanupReport.editions} 期</span>
+            <span>{cleanupReport.articles} 篇文章</span>
+            <span>{cleanupReport.raw_items} 条原始记录</span>
+            <span>{cleanupReport.fetch_runs + cleanupReport.analysis_runs} 条运行日志</span>
+            {cleanupReport.blocked ? (
+              <p>当前有抓取或分析任务运行中，完成后才能清理。</p>
+            ) : cleanupState === "ready" ? (
+              <button className="danger-button" onClick={runCleanup}>确认清理</button>
+            ) : null}
+          </div>
+        ) : null}
+        {cleanupState === "error" ? <p>清理预览失败，请稍后重试。</p> : null}
+      </details>
     </section>
   );
 }

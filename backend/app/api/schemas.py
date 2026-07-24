@@ -100,6 +100,26 @@ class RadarEditionList(BaseModel):
     items: list[RadarEditionSummary]
 
 
+class CleanupReportResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    keep_editions: int = Field(ge=1, le=50)
+    keep_fetch_runs_per_source: int = Field(ge=1)
+    keep_analysis_runs_per_article: int = Field(ge=1)
+    blocked: bool
+    running_editions: int = Field(ge=0)
+    running_fetch_runs: int = Field(ge=0)
+    running_analysis_runs: int = Field(ge=0)
+    editions: int = Field(ge=0)
+    articles: int = Field(ge=0)
+    raw_items: int = Field(ge=0)
+    fetch_runs: int = Field(ge=0)
+    analysis_runs: int = Field(ge=0)
+    authors: int = Field(ge=0)
+    tags: int = Field(ge=0)
+    event_clusters: int = Field(ge=0)
+
+
 class SearchResult(ArticleSummary):
     search_score: float = Field(ge=0)
 

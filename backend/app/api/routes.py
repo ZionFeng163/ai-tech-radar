@@ -27,6 +27,7 @@ from app.api.schemas import (
     AnalysisJobStatus,
     ArticleDetail,
     ArticlePage,
+    CleanupReportResponse,
     DailyBrief,
     PageMetadata,
     RadarEditionList,
@@ -38,6 +39,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.domain import AnalysisRunStatus
 from app.editions import ManualRadarService
+from app.maintenance import RetentionCleanupService
 from app.models import AnalysisRun, RadarEdition
 
 router = APIRouter()
@@ -124,6 +126,35 @@ def radar_edition(edition_id: UUID, session: SessionDependency) -> RadarEditionS
     if edition is None:
         raise HTTPException(status_code=404, detail="radar edition not found")
     return _edition_summary(edition)
+
+
+@router.get(
+    "/maintenance/cleanup-preview",
+    response_model=CleanupReportResponse,
+    tags=["maintenance"],
+)
+def cleanup_preview(
+    session: SessionDependency,
+    keep_editions: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> CleanupReportResponse:
+    report = RetentionCleanupService().preview(session, keep_editions=keep_editions)
+    return CleanupReportResponse.model_validate(report.as_dict())
+
+
+@router.delete(
+    "/maintenance/data",
+    response_model=CleanupReportResponse,
+    tags=["maintenance"],
+)
+def cleanup_data(
+    session: SessionDependency,
+    keep_editions: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> CleanupReportResponse:
+    try:
+        report = RetentionCleanupService().run(session, keep_editions=keep_editions)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return CleanupReportResponse.model_validate(report.as_dict())
 
 
 @router.get("/articles/{article_id}", response_model=ArticleDetail, tags=["articles"])
