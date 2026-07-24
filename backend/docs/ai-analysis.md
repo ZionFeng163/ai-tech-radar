@@ -16,12 +16,12 @@
 
 ## Provider 与配置
 
-默认生产配置使用阿里云百炼的 `deepseek-v4-flash`。百炼密钥只通过环境变量注入：
+默认生产配置使用阿里云百炼的 `qwen3.7-plus-2026-05-26`。百炼密钥只通过环境变量注入：
 
 ```json
 {
   "provider": "bailian",
-  "model": "deepseek-v4-flash",
+  "model": "qwen3.7-plus-2026-05-26",
   "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
   "api_key_env": "DASHSCOPE_API_KEY",
   "prompt_path": "config/prompts/article-analysis-v1.txt",

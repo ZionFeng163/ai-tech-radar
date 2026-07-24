@@ -53,11 +53,11 @@ def _request() -> LLMRequest:
     return LLMRequest("system", "user", article, strict_json_schema())
 
 
-def test_default_production_config_uses_bailian_deepseek() -> None:
+def test_default_production_config_uses_bailian_qwen() -> None:
     config = AnalysisConfig.from_file(DEFAULT_ANALYSIS_CONFIG_PATH)
 
     assert config.provider == "bailian"
-    assert config.model == "deepseek-v4-flash"
+    assert config.model == "qwen3.7-plus-2026-05-26"
     assert config.api_key_env == "DASHSCOPE_API_KEY"
     assert config.api_base == "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
@@ -177,7 +177,7 @@ def test_bailian_provider_uses_json_mode_without_thinking(monkeypatch) -> None:
     provider = BailianChatProvider(
         AnalysisConfig(
             provider="bailian",
-            model="deepseek-v4-flash",
+            model="qwen3.7-plus-2026-05-26",
             api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
             api_key_env="DASHSCOPE_API_KEY",
         ),
@@ -187,7 +187,7 @@ def test_bailian_provider_uses_json_mode_without_thinking(monkeypatch) -> None:
     asyncio.run(client.aclose())
 
     assert captured["url"] == ("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions")
-    assert captured["model"] == "deepseek-v4-flash"
+    assert captured["model"] == "qwen3.7-plus-2026-05-26"
     assert captured["response_format"] == {"type": "json_object"}
     assert captured["enable_thinking"] is False
     assert "JSON Schema" in captured["messages"][1]["content"]
