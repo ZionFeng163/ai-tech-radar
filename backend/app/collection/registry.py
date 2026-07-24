@@ -9,7 +9,6 @@ from app.sources.dev_community import DevCommunityAdapter
 from app.sources.github_releases import GitHubReleasesAdapter, GitHubReleasesConfig
 from app.sources.hacker_news import HackerNewsAdapter
 from app.sources.hugging_face import HuggingFaceAdapter, HuggingFaceConfig
-from app.sources.lobsters import LobstersAdapter
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 GITHUB_CONFIG_PATH = BACKEND_ROOT / "config" / "sources" / "github-releases.json"
@@ -84,21 +83,11 @@ def _dev_community_source() -> RegisteredSource:
     )
 
 
-def _lobsters_source() -> RegisteredSource:
-    return RegisteredSource(
-        descriptor=LobstersAdapter.descriptor,
-        persisted_config={"feed": "front-page-rss", "curation": "community-ranked"},
-        page_size=20,
-        adapter_factory=LobstersAdapter,
-    )
-
-
 class SourceRegistry:
     def __init__(self, sources: list[RegisteredSource] | None = None) -> None:
         registered = sources or [
             _hacker_news_source(),
             _dev_community_source(),
-            _lobsters_source(),
             _github_source(),
             _arxiv_source(),
             _hugging_face_source(),

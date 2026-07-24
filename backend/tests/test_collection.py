@@ -20,7 +20,6 @@ def test_registry_contains_all_mvp_sources() -> None:
     assert SourceRegistry().slugs == (
         "hacker-news",
         "dev-community",
-        "lobsters",
         "github-releases",
         "arxiv",
         "hugging-face",

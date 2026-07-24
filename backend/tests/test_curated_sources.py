@@ -4,7 +4,6 @@ import httpx
 
 from app.sources.dev_community import DevCommunityAdapter
 from app.sources.hacker_news import HackerNewsAdapter
-from app.sources.lobsters import LobstersAdapter
 
 
 def test_hacker_news_adapter_preserves_rank_and_engagement() -> None:
@@ -68,35 +67,3 @@ def test_dev_community_adapter_uses_popularity_metadata() -> None:
     assert normalized.metadata["reactions"] == 280
     assert normalized.metadata["comments"] == 34
     assert "近 7 日热门第 1 位" in (normalized.content or "")
-
-
-def test_lobsters_adapter_parses_front_page_rss() -> None:
-    feed = """<?xml version="1.0" encoding="UTF-8"?>
-    <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
-      <channel>
-        <item>
-          <title>Database internals</title>
-          <link>https://example.com/database</link>
-          <guid>https://lobste.rs/s/abc/database_internals</guid>
-          <comments>https://lobste.rs/s/abc/database_internals</comments>
-          <pubDate>Tue, 22 Jul 2026 08:00:00 +0000</pubDate>
-          <description><![CDATA[<p>A concise tour of storage engines.</p>]]></description>
-          <dc:creator>bob</dc:creator>
-          <category>databases</category>
-        </item>
-      </channel>
-    </rss>"""
-
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=feed.encode())
-
-    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    adapter = LobstersAdapter(client=client)
-    batch = asyncio.run(adapter.fetch(limit=1))
-    normalized = adapter.normalize(batch.items[0])
-    asyncio.run(client.aclose())
-
-    assert normalized.title == "Database internals"
-    assert normalized.metadata["rank"] == 1
-    assert "databases" in normalized.tags
-    assert "Lobsters" in normalized.tags
