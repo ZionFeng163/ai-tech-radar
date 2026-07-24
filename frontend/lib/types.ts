@@ -88,6 +88,13 @@ export interface RadarEdition {
   status: "running" | "complete" | "failed";
   article_count: number;
   source_results: Array<Record<string, unknown>>;
+  progress: {
+    stage: "queued" | "collecting" | "normalizing" | "analyzing" | "complete" | "failed";
+    completed: number;
+    total: number;
+    message: string;
+    current_source?: string | null;
+  };
   error_summary: string | null;
 }
 

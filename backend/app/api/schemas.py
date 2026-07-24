@@ -90,6 +90,7 @@ class RadarEditionSummary(BaseModel):
     status: RadarEditionStatus
     article_count: int = Field(ge=0)
     source_results: list[dict[str, object]]
+    progress: dict[str, object]
     error_summary: str | None
 
 

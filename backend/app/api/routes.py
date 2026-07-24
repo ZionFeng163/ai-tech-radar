@@ -361,6 +361,7 @@ def _edition_summary(edition: RadarEdition) -> RadarEditionSummary:
         status=edition.status,
         article_count=edition.article_count,
         source_results=edition.source_results,
+        progress=edition.progress,
         error_summary=edition.error_summary,
     )
 

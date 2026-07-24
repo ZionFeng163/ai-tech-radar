@@ -55,6 +55,7 @@ class RadarEdition(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     source_results: Mapped[list[dict[str, object]]] = mapped_column(
         JSONB, default=list, nullable=False
     )
+    progress: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
     article_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_summary: Mapped[str | None] = mapped_column(Text)
 

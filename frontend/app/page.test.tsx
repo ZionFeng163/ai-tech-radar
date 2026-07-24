@@ -47,6 +47,12 @@ describe("Home", () => {
         status: "complete",
         article_count: 1,
         source_results: [],
+        progress: {
+          stage: "complete",
+          completed: 1,
+          total: 1,
+          message: "已完成",
+        },
         error_summary: null,
       }],
     });
