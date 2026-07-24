@@ -36,7 +36,7 @@ class WritingProject(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSONB, default=list, nullable=False
     )
     selected_angle_id: Mapped[str | None] = mapped_column(String(50))
-    output_format: Mapped[str] = mapped_column(String(30), default="thread", nullable=False)
+    output_format: Mapped[str] = mapped_column(String(30), default="short_post", nullable=False)
     human_input: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, nullable=False)
     draft_content: Mapped[str | None] = mapped_column(Text)
     review: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)

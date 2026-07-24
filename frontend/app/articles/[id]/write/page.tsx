@@ -35,9 +35,9 @@ export default async function WritingPage({ params }: WritingRouteProps) {
         <span>写作工作台</span>
       </nav>
       <header className="studio-header">
-        <p className="section-index">WRITING STUDIO / PHASE 01</p>
+        <p className="section-index">WRITING STUDIO / REFERENCE VOICE</p>
         <h1>从热点到观点</h1>
-        <p>先选角度，再加入你的真实判断。模型负责研究、组织和审校，不替你假装思考。</p>
+        <p>选一个真正值得写的角度就可以直接生成。模型参考你认可的推文节奏，但不照搬句子，也不替你编造经历。</p>
       </header>
       <WritingStudio article={article} />
     </main>

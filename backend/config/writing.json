@@ -3,10 +3,11 @@
   "model": "qwen3.7-plus-2026-05-26",
   "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
   "api_key_env": "DASHSCOPE_API_KEY",
-  "prompt_version": "writing-studio-v1",
+  "prompt_version": "writing-studio-v2",
   "angle_prompt_path": "config/prompts/writing-angles-v1.txt",
   "draft_prompt_path": "config/prompts/writing-draft-v1.txt",
   "review_prompt_path": "config/prompts/writing-review-v1.txt",
+  "style_reference_path": "config/prompts/writing-style-reference-v1.txt",
   "timeout_seconds": 120,
   "max_input_characters": 16000,
   "max_output_tokens": 5000

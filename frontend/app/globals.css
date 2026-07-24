@@ -193,10 +193,9 @@ button, input, select { font: inherit; }
 .angle-card > span:not(.angle-card-top) { display: grid; gap: 6px; padding-top: 13px; border-top: 1px solid rgba(17, 18, 15, .25); font-size: .8rem; line-height: 1.5; }
 .angle-card small { font: 800 .62rem/1 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
 .studio-help { max-width: 760px; margin: -8px 0 28px; color: var(--muted); line-height: 1.7; }
-.human-input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.human-input-grid label { display: grid; gap: 10px; }
-.human-input-grid label > span, .format-picker legend { font-weight: 800; }
-.human-input-grid textarea { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--ink); border-radius: 0; padding: 14px; background: var(--white); color: var(--ink); font: inherit; line-height: 1.6; }
+.emphasis-input { width: min(760px, 100%); display: grid; gap: 10px; }
+.emphasis-input > span, .format-picker legend { font-weight: 800; }
+.emphasis-input textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--ink); border-radius: 0; padding: 14px; background: var(--white); color: var(--ink); font: inherit; line-height: 1.6; }
 .format-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 34px 0 0; padding: 0; border: 0; }
 .format-picker legend { margin-bottom: 12px; }
 .format-picker label { position: relative; display: grid; gap: 6px; padding: 16px; border: 1px solid var(--line); cursor: pointer; }
@@ -252,7 +251,7 @@ button, input, select { font: inherit; }
   .studio-header { grid-template-columns: 1fr; }
   .studio-source { grid-template-columns: 1fr; }
   .studio-source .section-index { grid-row: auto; }
-  .angle-grid, .human-input-grid { grid-template-columns: 1fr; }
+  .angle-grid { grid-template-columns: 1fr; }
   .angle-card em { min-height: 0; }
   .site-footer { grid-template-columns: 1fr 1fr; }
   .site-footer p:last-child { display: none; }

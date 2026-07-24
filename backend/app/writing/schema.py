@@ -22,10 +22,10 @@ class WritingAngle(BaseModel):
     signal: str = Field(min_length=10, max_length=500)
     mechanism: str = Field(min_length=10, max_length=800)
     change: str = Field(min_length=10, max_length=800)
-    tension: str = Field(min_length=10, max_length=800)
+    tension: str = Field(default="", max_length=800)
     evidence: list[str] = Field(min_length=1, max_length=5)
-    counterargument: str = Field(min_length=10, max_length=600)
-    uncertainty: str = Field(min_length=2, max_length=500)
+    counterargument: str = Field(default="", max_length=600)
+    uncertainty: str = Field(default="", max_length=500)
     reader_gain: str = Field(min_length=10, max_length=400)
     recommended_format: WritingFormat
     value_score: float = Field(ge=0, le=10)

@@ -77,7 +77,7 @@ class WritingService:
         session.commit()
         try:
             response = await self.provider.complete(
-                self.config.load_prompt("angles"),
+                self._angle_system_prompt(),
                 self._safe_json_prompt("热点资料", source_pack),
                 json_schema=strict_schema(WritingAngleSet),
             )
@@ -110,8 +110,8 @@ class WritingService:
         source_pack = self._source_pack(session, project.article_id)
         request_pack = {
             "target_format": output_format,
-            "selected_angle": angle.model_dump(mode="json"),
-            "author_real_input": human_input.model_dump(mode="json"),
+            "selected_angle": self._draft_angle(angle),
+            "optional_emphasis": human_input.core_take,
             "source_material": source_pack,
         }
         project.status = "generating_draft"
@@ -121,7 +121,7 @@ class WritingService:
         draft = ""
         try:
             for attempt in range(2):
-                response = await self.provider.complete(self.config.load_prompt("draft"), prompt)
+                response = await self.provider.complete(self._draft_system_prompt(), prompt)
                 draft = response.output_text.strip()
                 try:
                     _validate_draft_format(draft, output_format)
@@ -156,10 +156,10 @@ class WritingService:
         source_pack = self._source_pack(session, project.article_id)
         request_pack = {
             "target_format": project.output_format,
-            "selected_angle": self._select_angle(
-                project, project.selected_angle_id or ""
-            ).model_dump(mode="json"),
-            "author_real_input": project.human_input,
+            "selected_angle": self._draft_angle(
+                self._select_angle(project, project.selected_angle_id or "")
+            ),
+            "optional_emphasis": project.human_input.get("core_take", ""),
             "source_material": source_pack,
             "draft": project.draft_content,
         }
@@ -168,7 +168,7 @@ class WritingService:
         session.commit()
         try:
             response = await self.provider.complete(
-                self.config.load_prompt("review"),
+                self._review_system_prompt(),
                 self._safe_json_prompt("审校任务", request_pack),
                 json_schema=strict_schema(WritingReview),
             )
@@ -216,11 +216,31 @@ class WritingService:
                 return WritingAngle.model_validate(raw)
         raise ValueError("select a valid writing angle")
 
+    @staticmethod
+    def _draft_angle(angle: WritingAngle) -> dict[str, object]:
+        """Do not propagate angle-stage speculation into factual prose."""
+
+        return {
+            "label": angle.label,
+            "thesis": angle.thesis,
+            "evidence": angle.evidence,
+            "reader_gain": angle.reader_gain,
+        }
+
     def _record_model(self, project: WritingProject) -> None:
         project.provider = self.provider.name
         project.model = self.provider.model
         project.prompt_version = self.config.prompt_version
         project.error_summary = None
+
+    def _draft_system_prompt(self) -> str:
+        return self.config.load_prompt("draft") + "\n\n" + self.config.load_style_reference()
+
+    def _angle_system_prompt(self) -> str:
+        return self.config.load_prompt("angles") + "\n\n" + self.config.load_style_reference()
+
+    def _review_system_prompt(self) -> str:
+        return self.config.load_prompt("review") + "\n\n" + self.config.load_style_reference()
 
     @staticmethod
     def _record_error(session: Session, project: WritingProject, exc: Exception) -> None:
@@ -251,8 +271,28 @@ def _strip_fence(value: str) -> str:
 def _validate_draft_format(content: str, output_format: WritingFormat) -> None:
     if not content:
         raise ValueError("草稿为空")
-    if output_format == "short_post" and len(content) > 280:
-        raise ValueError(f"短帖有 {len(content)} 个字符，超过 280")
+    if output_format == "short_post" and len(content) > 800:
+        raise ValueError(f"观点推文有 {len(content)} 个字符，超过 800")
+    style_markers = (
+        "释放了一个明确信号",
+        "重塑格局",
+        "商业胜势",
+        "胜负手",
+        "必要的技术底座",
+        "拐点尚未",
+        "反方观点",
+        "观察重点应",
+        "核心机制是",
+        "这种变化",
+        "把功夫花在了前面",
+        "结果是",
+        "当然，",
+        "这才是",
+        "**",
+    )
+    found = [marker for marker in style_markers if marker in content]
+    if found:
+        raise ValueError(f"草稿仍有模板化表达：{', '.join(found)}")
     if output_format != "thread":
         return
     posts = [block.strip() for block in content.split("\n\n") if block.strip()]

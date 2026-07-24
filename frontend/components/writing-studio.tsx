@@ -16,8 +16,8 @@ const EMPTY_INPUT: HumanInput = {
 };
 
 const FORMAT_OPTIONS: Array<{ value: WritingFormat; label: string; note: string }> = [
-  { value: "short_post", label: "单条短帖", note: "一个判断，一项证据，一个含义" },
-  { value: "thread", label: "短 Thread", note: "4–6 条，完整走完论证" },
+  { value: "short_post", label: "观点推文", note: "约 300–800 字，参考你给的样例" },
+  { value: "thread", label: "短 Thread", note: "4–6 条，每条可独立阅读" },
   { value: "article", label: "X 长文", note: "约 1200–2500 个汉字" },
 ];
 
@@ -27,7 +27,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
   const initialized = useRef(false);
   const [project, setProject] = useState<WritingProject | null>(null);
   const [selectedAngle, setSelectedAngle] = useState("");
-  const [format, setFormat] = useState<WritingFormat>("thread");
+  const [format, setFormat] = useState<WritingFormat>("short_post");
   const [humanInput, setHumanInput] = useState<HumanInput>(EMPTY_INPUT);
   const [draft, setDraft] = useState("");
   const [operation, setOperation] = useState<Operation>("init");
@@ -46,7 +46,10 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
     setProject(next);
     setSelectedAngle(next.selected_angle_id ?? next.angle_options[0]?.id ?? "");
     setFormat(next.output_format);
-    setHumanInput(next.human_input ?? EMPTY_INPUT);
+    setHumanInput({
+      ...EMPTY_INPUT,
+      core_take: next.human_input?.core_take ?? "",
+    });
     setDraft(next.draft_content ?? "");
     setOperation(null);
     setError("");
@@ -183,9 +186,8 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
                 />
                 <span className="angle-card-top"><strong>{angle.label}</strong><b>{angle.value_score.toFixed(1)}</b></span>
                 <em>{angle.thesis}</em>
-                <span><small>变化</small>{angle.change}</span>
-                <span><small>张力</small>{angle.tension}</span>
-                <span><small>反方</small>{angle.counterargument}</span>
+                <span><small>为什么值得写</small>{angle.reader_gain}</span>
+                <span><small>资料支点</small>{angle.evidence.slice(0, 2).join("；")}</span>
               </label>
             ))}
           </div>
@@ -196,23 +198,13 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
 
       {project.angle_options.length ? (
         <section className="studio-step">
-          <p className="section-index">02 / YOUR POINT OF VIEW</p>
-          <h2>把真实的你放进去</h2>
-          <p className="studio-help">都可以留空，但模型绝不会替你编造亲历。哪怕只补一句真实判断，成稿也会明显不同。</p>
-          <div className="human-input-grid">
-            <label>
-              <span>我真正想说的是</span>
-              <textarea value={humanInput.core_take} onChange={(event) => setHumanInput({ ...humanInput, core_take: event.target.value })} placeholder="例如：我觉得竞争重点已经不是能力，而是让开发者形成工作流依赖。" />
-            </label>
-            <label>
-              <span>我亲自观察到的现象</span>
-              <textarea value={humanInput.personal_observation} onChange={(event) => setHumanInput({ ...humanInput, personal_observation: event.target.value })} placeholder="只写真实发生过的使用体验、对话或判断。" />
-            </label>
-            <label>
-              <span>我不同意主流观点的地方</span>
-              <textarea value={humanInput.disagreement} onChange={(event) => setHumanInput({ ...humanInput, disagreement: event.target.value })} placeholder="没有也可以留空，不需要为了显得独特而强行反对。" />
-            </label>
-          </div>
+          <p className="section-index">02 / OPTIONAL EMPHASIS</p>
+          <h2>有想强调的就补一句</h2>
+          <p className="studio-help">完全可以留空。模型会根据资料和参考风格自己完成信息取舍，也不会假装你亲自用过。</p>
+          <label className="emphasis-input">
+            <span>可选：这次特别想强调什么</span>
+            <textarea value={humanInput.core_take} onChange={(event) => setHumanInput({ ...EMPTY_INPUT, core_take: event.target.value })} placeholder="例如：我更关心它能否在普通硬件上真正跑起来。没有就直接生成。" />
+          </label>
 
           <fieldset className="format-picker">
             <legend>输出形式</legend>
@@ -225,7 +217,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             ))}
           </fieldset>
           <button className="action-button studio-generate" disabled={!selectedAngle || operation !== null} onClick={generateDraft}>
-            {operation === "draft" ? "正在组织论证并写作…" : project.draft_content ? "按当前观点重新生成" : "生成第一版正文"}
+            {operation === "draft" ? "正在按参考风格写作…" : project.draft_content ? "按当前选择重新生成" : "直接生成第一版"}
           </button>
         </section>
       ) : null}

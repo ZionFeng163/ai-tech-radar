@@ -17,6 +17,7 @@ class WritingConfig(BaseModel):
     angle_prompt_path: Path = Path("config/prompts/writing-angles-v1.txt")
     draft_prompt_path: Path = Path("config/prompts/writing-draft-v1.txt")
     review_prompt_path: Path = Path("config/prompts/writing-review-v1.txt")
+    style_reference_path: Path = Path("config/prompts/writing-style-reference-v1.txt")
     timeout_seconds: float = Field(default=120, ge=1, le=300)
     max_input_characters: int = Field(default=16_000, ge=1_000, le=100_000)
     max_output_tokens: int = Field(default=5_000, ge=500, le=16_000)
@@ -32,6 +33,12 @@ class WritingConfig(BaseModel):
             "review": self.review_prompt_path,
         }
         path = paths[stage]
+        if not path.is_absolute():
+            path = BACKEND_ROOT / path
+        return path.read_text(encoding="utf-8").strip()
+
+    def load_style_reference(self) -> str:
+        path = self.style_reference_path
         if not path.is_absolute():
             path = BACKEND_ROOT / path
         return path.read_text(encoding="utf-8").strip()

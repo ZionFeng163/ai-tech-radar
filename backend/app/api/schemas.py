@@ -68,7 +68,7 @@ class AnalysisJobStatus(BaseModel):
 
 class WritingDraftRequest(BaseModel):
     angle_id: str = Field(min_length=1, max_length=50)
-    output_format: WritingFormat = "thread"
+    output_format: WritingFormat = "short_post"
     human_input: HumanInput = Field(default_factory=HumanInput)
 
 

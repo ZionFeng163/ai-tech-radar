@@ -14,7 +14,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-plus-2026-05-26"
-    assert config.prompt_version == "writing-studio-v1"
+    assert config.prompt_version == "writing-studio-v2"
     assert config.max_output_tokens > 2_000
 
 
@@ -59,6 +59,26 @@ def test_thread_format_rejects_oversized_or_wrong_post_count() -> None:
         assert "4–6" in str(exc)
     else:
         raise AssertionError("short threads must be rejected")
+
+
+def test_reference_style_post_allows_the_requested_medium_length() -> None:
+    _validate_draft_format("一段具体的观点。" * 70, "short_post")
+
+    try:
+        _validate_draft_format("太长了" * 267, "short_post")
+    except ValueError as exc:
+        assert "超过 800" in str(exc)
+    else:
+        raise AssertionError("overlong point-of-view posts must be rejected")
+
+
+def test_reference_style_rejects_known_report_phrases() -> None:
+    try:
+        _validate_draft_format("这项发布释放了一个明确信号。", "short_post")
+    except ValueError as exc:
+        assert "模板化表达" in str(exc)
+    else:
+        raise AssertionError("report-style filler must trigger one rewrite")
 
 
 def test_angle_schema_requires_three_distinct_editorial_slots() -> None:

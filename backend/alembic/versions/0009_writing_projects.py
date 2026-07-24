@@ -29,7 +29,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("selected_angle_id", sa.String(length=50), nullable=True),
-        sa.Column("output_format", sa.String(length=30), server_default="thread", nullable=False),
+        sa.Column(
+            "output_format", sa.String(length=30), server_default="short_post", nullable=False
+        ),
         sa.Column(
             "human_input", postgresql.JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False
         ),
