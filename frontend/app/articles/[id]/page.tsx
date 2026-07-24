@@ -112,7 +112,9 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
               <section className="analysis-section raw-content">
                 <p className="section-index">SOURCE / ABSTRACT</p>
                 <h2>原始内容摘要</h2>
-                {article.content.split(/\n{2,}/).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                {article.content.split(/\n{2,}/).map((paragraph, index) => (
+                  <p key={`${index}-${paragraph.slice(0, 32)}`}>{paragraph}</p>
+                ))}
               </section>
             ) : null}
           </div>
