@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { DeepAnalysisButton } from "@/components/deep-analysis-button";
 import type {
   ArticleDetail,
   HumanInput,
@@ -21,6 +22,8 @@ const FORMAT_OPTIONS: Array<{ value: WritingFormat; label: string; note: string 
   { value: "article", label: "X 长文", note: "约 1200–2500 个汉字" },
 ];
 
+const SOURCE_EXCERPT_MIN_CHARACTERS = 200;
+
 type Operation = "init" | "angles" | "draft" | "save" | "review" | null;
 
 export function WritingStudio({ article }: { article: ArticleDetail }) {
@@ -33,6 +36,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
   const [operation, setOperation] = useState<Operation>("init");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const hasSourceExcerpt = (article.content?.trim().length ?? 0) >= SOURCE_EXCERPT_MIN_CHARACTERS;
 
   useEffect(() => {
     if (initialized.current) return;
@@ -157,6 +161,34 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
           {article.novelty_summary ? <span>新意：{article.novelty_summary}</span> : null}
           {article.heat_reasons.slice(0, 2).map((reason) => <span key={reason}>热度：{reason}</span>)}
         </div>
+      </section>
+
+      <section className={`studio-source-status ${article.analysis_depth === "deep" ? "is-deep" : ""}`}>
+        <div>
+          <p className="section-index">SOURCE QUALITY / WRITING INPUT</p>
+          {article.analysis_depth === "deep" && hasSourceExcerpt ? (
+            <>
+              <h2>深度分析已接入写作</h2>
+              <p>
+                新生成的角度会带上技术机制、新意和应用判断。
+                {project.angle_options.length ? "现有角度和草稿不会被覆盖；点“重新生成角度”后才会使用这些新资料。" : "现在可以直接生成写作角度。"}
+              </p>
+            </>
+          ) : hasSourceExcerpt ? (
+            <>
+              <h2>当前使用原始资料与快速概览</h2>
+              <p>现在也能直接写；如果准备写技术 Thread 或长文，先补深度分析通常会让论据和技术解释更完整。</p>
+            </>
+          ) : (
+            <>
+              <h2>当前是薄资料写作模式</h2>
+              <p>这条热点主要只有标题和热度数字。为了避免 AI 自我引用，深度分析不会被当成原始事实；短推文可以直接生成，长文建议先补充可靠来源。</p>
+            </>
+          )}
+        </div>
+        {article.analysis_depth === "brief" && hasSourceExcerpt ? (
+          <DeepAnalysisButton articleId={article.id} variant="writing" />
+        ) : null}
       </section>
 
       <section className="studio-step">

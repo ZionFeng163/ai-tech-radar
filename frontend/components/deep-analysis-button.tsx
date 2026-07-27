@@ -10,7 +10,13 @@ interface AnalysisJobStatus {
 const POLL_INTERVAL_MS = 1_200;
 const MAX_POLLS = 75;
 
-export function DeepAnalysisButton({ articleId }: { articleId: string }) {
+export function DeepAnalysisButton({
+  articleId,
+  variant = "detail",
+}: {
+  articleId: string;
+  variant?: "detail" | "writing";
+}) {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
 
@@ -44,6 +50,17 @@ export function DeepAnalysisButton({ articleId }: { articleId: string }) {
     } catch {
       setStatus("error");
     }
+  }
+
+  if (variant === "writing") {
+    return (
+      <div className="deep-analysis-inline">
+        <button className="secondary-button" disabled={status === "loading"} onClick={generate}>
+          {status === "loading" ? "正在生成深度分析…" : "先补一份深度分析"}
+        </button>
+        {status === "error" ? <p className="deep-analysis-error">生成失败，请稍后重试。</p> : null}
+      </div>
+    );
   }
 
   return (
