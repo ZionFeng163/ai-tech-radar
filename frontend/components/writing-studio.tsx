@@ -16,7 +16,7 @@ const EMPTY_INPUT: HumanInput = {
 };
 
 const FORMAT_OPTIONS: Array<{ value: WritingFormat; label: string; note: string }> = [
-  { value: "short_post", label: "观点推文", note: "约 300–800 字，参考你给的样例" },
+  { value: "short_post", label: "短观点推文", note: "约 180–300 字，只讲一个认识" },
   { value: "thread", label: "短 Thread", note: "4–6 条，每条可独立阅读" },
   { value: "article", label: "X 长文", note: "约 1200–2500 个汉字" },
 ];
@@ -166,7 +166,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             <h2>先决定写什么，不急着成稿</h2>
           </div>
           <button className="secondary-button" disabled={operation !== null} onClick={generateAngles}>
-            {operation === "angles" ? "正在分析三个角度…" : project.angle_options.length ? "重新生成角度" : "生成三个角度"}
+            {operation === "angles" ? "正在分析写作角度…" : project.angle_options.length ? "重新生成角度" : "生成写作角度"}
           </button>
         </div>
 
@@ -192,7 +192,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             ))}
           </div>
         ) : (
-          <p className="studio-empty">模型会提出技术机制、产业变化和实际使用者三个方向。你选择之后才会写正文。</p>
+          <p className="studio-empty">模型会根据资料完整度提出一到三个角度；资料很薄时只给一个有依据的方向。</p>
         )}
       </section>
 

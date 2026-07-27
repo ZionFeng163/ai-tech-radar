@@ -20,8 +20,8 @@ class WritingAngle(BaseModel):
     label: str = Field(min_length=2, max_length=40)
     thesis: str = Field(min_length=10, max_length=300)
     signal: str = Field(min_length=10, max_length=500)
-    mechanism: str = Field(min_length=10, max_length=800)
-    change: str = Field(min_length=10, max_length=800)
+    mechanism: str = Field(default="", max_length=800)
+    change: str = Field(default="", max_length=800)
     tension: str = Field(default="", max_length=800)
     evidence: list[str] = Field(min_length=1, max_length=5)
     counterargument: str = Field(default="", max_length=600)
@@ -34,7 +34,7 @@ class WritingAngle(BaseModel):
 class WritingAngleSet(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    angles: list[WritingAngle] = Field(min_length=3, max_length=3)
+    angles: list[WritingAngle] = Field(min_length=1, max_length=3)
 
 
 class ReviewIssue(BaseModel):

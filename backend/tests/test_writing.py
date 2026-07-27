@@ -14,7 +14,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-plus-2026-05-26"
-    assert config.prompt_version == "writing-studio-v2"
+    assert config.prompt_version == "writing-studio-v3"
     assert config.max_output_tokens > 2_000
 
 
@@ -62,14 +62,62 @@ def test_thread_format_rejects_oversized_or_wrong_post_count() -> None:
 
 
 def test_reference_style_post_allows_the_requested_medium_length() -> None:
-    _validate_draft_format("一段具体的观点。" * 70, "short_post")
+    _validate_draft_format("一段具体的观点。" * 35, "short_post")
 
     try:
-        _validate_draft_format("太长了" * 267, "short_post")
+        _validate_draft_format("太长了" * 121, "short_post")
     except ValueError as exc:
-        assert "超过 800" in str(exc)
+        assert "超过 360" in str(exc)
     else:
         raise AssertionError("overlong point-of-view posts must be rejected")
+
+
+def test_reference_style_post_rejects_too_many_paragraphs() -> None:
+    try:
+        _validate_draft_format("\n\n".join(["新信息"] * 6), "short_post")
+    except ValueError as exc:
+        assert "最多 5 个" in str(exc)
+    else:
+        raise AssertionError("mechanical multi-paragraph posts must be compressed")
+
+
+def test_metadata_only_post_has_stricter_size_budget() -> None:
+    try:
+        _validate_draft_format(
+            "只有标题复述。",
+            "short_post",
+            short_post_min=110,
+            short_post_max=280,
+            short_post_paragraphs=3,
+        )
+    except ValueError as exc:
+        assert "少于 110" in str(exc)
+    else:
+        raise AssertionError("thin posts must still contain an editorial idea")
+
+    try:
+        _validate_draft_format(
+            "还是很长" * 71,
+            "short_post",
+            short_post_max=280,
+            short_post_paragraphs=3,
+        )
+    except ValueError as exc:
+        assert "超过 280" in str(exc)
+    else:
+        raise AssertionError("thin sources must produce shorter posts")
+
+    try:
+        _validate_draft_format(
+            "资料里只有标题和元数据，所以只能猜测技术债。",
+            "short_post",
+            short_post_max=280,
+            short_post_paragraphs=3,
+        )
+    except ValueError as exc:
+        assert "模板化表达" in str(exc)
+    else:
+        raise AssertionError("internal source limitations must not leak into the post")
 
 
 def test_reference_style_rejects_known_report_phrases() -> None:
@@ -81,8 +129,20 @@ def test_reference_style_rejects_known_report_phrases() -> None:
         raise AssertionError("report-style filler must trigger one rewrite")
 
 
-def test_angle_schema_requires_three_distinct_editorial_slots() -> None:
+def test_reference_style_rejects_abstract_ai_diagnosis() -> None:
+    try:
+        _validate_draft_format(
+            "评论很多，恰恰说明大家都陷入集体焦虑，系统熵增成为新的瓶颈。",
+            "short_post",
+        )
+    except ValueError as exc:
+        assert "模板化表达" in str(exc)
+    else:
+        raise AssertionError("abstract AI diagnosis must trigger a rewrite")
+
+
+def test_angle_schema_allows_one_grounded_angle_for_thin_sources() -> None:
     schema = WritingAngleSet.model_json_schema()
 
-    assert schema["properties"]["angles"]["minItems"] == 3
+    assert schema["properties"]["angles"]["minItems"] == 1
     assert schema["properties"]["angles"]["maxItems"] == 3
