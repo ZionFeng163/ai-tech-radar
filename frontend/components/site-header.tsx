@@ -13,6 +13,7 @@ export function SiteHeader() {
         <Link href="/">今日信号</Link>
         <Link href="/#topics">技术分类</Link>
         <Link href="/search">搜索</Link>
+        <Link href="/compose">自由写作</Link>
       </nav>
       <form className="header-search" action="/search" role="search">
         <label className="sr-only" htmlFor="header-q">

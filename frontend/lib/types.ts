@@ -25,6 +25,19 @@ export type TechnicalCategory =
 
 export type OpenSourceStatus = "open" | "partial" | "closed" | "unknown";
 export type SignalType = "technical" | "product" | "ecosystem" | "industry" | "community";
+export type ComposerMode = "idea" | "paper";
+
+export interface ComposerResponse {
+  mode: ComposerMode;
+  draft: string;
+  model: string;
+  source: {
+    arxiv_id: string;
+    title: string;
+    authors: string[];
+    canonical_url: string;
+  } | null;
+}
 
 export interface SourceReference {
   slug: string;

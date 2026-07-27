@@ -7,6 +7,8 @@
   "angle_prompt_path": "config/prompts/writing-angles-v1.txt",
   "draft_prompt_path": "config/prompts/writing-draft-v1.txt",
   "review_prompt_path": "config/prompts/writing-review-v1.txt",
+  "idea_prompt_path": "config/prompts/composer-idea-v1.txt",
+  "paper_prompt_path": "config/prompts/composer-paper-v1.txt",
   "style_reference_path": "config/prompts/writing-style-reference-v1.txt",
   "timeout_seconds": 120,
   "max_input_characters": 16000,

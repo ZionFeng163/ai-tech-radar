@@ -40,6 +40,12 @@ from app.api.schemas import (
     WritingDraftUpdate,
     WritingProjectResponse,
 )
+from app.composer import (
+    ComposerResponse,
+    ComposerService,
+    IdeaComposeRequest,
+    PaperComposeRequest,
+)
 from app.config import get_settings
 from app.db import SessionLocal
 from app.domain import AnalysisRunStatus
@@ -184,6 +190,30 @@ def create_writing_project(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return _writing_project_response(project)
+
+
+@router.post("/composer/idea", response_model=ComposerResponse, tags=["writing"])
+async def compose_idea(request: IdeaComposeRequest) -> ComposerResponse:
+    service = _composer_service()
+    try:
+        return await service.compose_idea(request.fragments)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"想法扩写失败：{exc}") from exc
+
+
+@router.post("/composer/paper", response_model=ComposerResponse, tags=["writing"])
+async def compose_paper(request: PaperComposeRequest) -> ComposerResponse:
+    service = _composer_service()
+    try:
+        return await service.compose_paper(request.url, emphasis=request.emphasis)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"论文写作失败：{exc}") from exc
 
 
 @router.get(
@@ -523,6 +553,13 @@ def _edition_summary(edition: RadarEdition) -> RadarEditionSummary:
 def _writing_service() -> WritingService:
     try:
         return WritingService(WritingConfig.from_file())
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=f"写作模型不可用：{exc}") from exc
+
+
+def _composer_service() -> ComposerService:
+    try:
+        return ComposerService(WritingConfig.from_file())
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=f"写作模型不可用：{exc}") from exc
 

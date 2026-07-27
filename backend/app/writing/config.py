@@ -17,6 +17,8 @@ class WritingConfig(BaseModel):
     angle_prompt_path: Path = Path("config/prompts/writing-angles-v1.txt")
     draft_prompt_path: Path = Path("config/prompts/writing-draft-v1.txt")
     review_prompt_path: Path = Path("config/prompts/writing-review-v1.txt")
+    idea_prompt_path: Path = Path("config/prompts/composer-idea-v1.txt")
+    paper_prompt_path: Path = Path("config/prompts/composer-paper-v1.txt")
     style_reference_path: Path = Path("config/prompts/writing-style-reference-v1.txt")
     timeout_seconds: float = Field(default=120, ge=1, le=300)
     max_input_characters: int = Field(default=16_000, ge=1_000, le=100_000)
@@ -31,6 +33,8 @@ class WritingConfig(BaseModel):
             "angles": self.angle_prompt_path,
             "draft": self.draft_prompt_path,
             "review": self.review_prompt_path,
+            "idea": self.idea_prompt_path,
+            "paper": self.paper_prompt_path,
         }
         path = paths[stage]
         if not path.is_absolute():
