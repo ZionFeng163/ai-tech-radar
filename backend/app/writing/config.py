@@ -19,6 +19,7 @@ class WritingConfig(BaseModel):
     review_prompt_path: Path = Path("config/prompts/writing-review-v1.txt")
     idea_prompt_path: Path = Path("config/prompts/composer-idea-v1.txt")
     paper_prompt_path: Path = Path("config/prompts/composer-paper-v1.txt")
+    github_prompt_path: Path = Path("config/prompts/composer-github-v1.txt")
     style_reference_path: Path = Path("config/prompts/writing-style-reference-v1.txt")
     timeout_seconds: float = Field(default=120, ge=1, le=300)
     max_input_characters: int = Field(default=16_000, ge=1_000, le=100_000)
@@ -35,6 +36,7 @@ class WritingConfig(BaseModel):
             "review": self.review_prompt_path,
             "idea": self.idea_prompt_path,
             "paper": self.paper_prompt_path,
+            "github": self.github_prompt_path,
         }
         path = paths[stage]
         if not path.is_absolute():

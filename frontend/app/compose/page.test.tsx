@@ -13,6 +13,7 @@ describe("ComposePage", () => {
       "true",
     );
     expect(screen.getByRole("tab", { name: /从论文链接写短帖/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /从 GitHub 仓库写短帖/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "扩写成短推文" })).toBeDisabled();
   });
 });

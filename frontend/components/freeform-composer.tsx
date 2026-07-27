@@ -8,6 +8,7 @@ export function FreeformComposer() {
   const [mode, setMode] = useState<ComposerMode>("idea");
   const [fragments, setFragments] = useState("");
   const [paperUrl, setPaperUrl] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
   const [emphasis, setEmphasis] = useState("");
   const [draft, setDraft] = useState("");
   const [source, setSource] = useState<ComposerResponse["source"]>(null);
@@ -29,7 +30,7 @@ export function FreeformComposer() {
     try {
       const payload = mode === "idea"
         ? { fragments }
-        : { url: paperUrl, emphasis };
+        : { url: mode === "paper" ? paperUrl : githubUrl, emphasis };
       const response = await fetch(`/api/composer/${mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,7 +55,9 @@ export function FreeformComposer() {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  const canGenerate = mode === "idea" ? fragments.trim().length >= 5 : paperUrl.trim().length >= 8;
+  const canGenerate = mode === "idea"
+    ? fragments.trim().length >= 5
+    : (mode === "paper" ? paperUrl : githubUrl).trim().length >= 8;
 
   return (
     <div className="freeform-composer">
@@ -81,6 +84,17 @@ export function FreeformComposer() {
           <strong>从论文链接写短帖</strong>
           <small>读取 arXiv 摘要，提炼机制、数字和判断</small>
         </button>
+        <button
+          className={mode === "github" ? "is-active" : ""}
+          type="button"
+          role="tab"
+          aria-selected={mode === "github"}
+          onClick={() => switchMode("github")}
+        >
+          <span>03</span>
+          <strong>从 GitHub 仓库写短帖</strong>
+          <small>读取仓库、README 和最新 Release，说清它能省什么事</small>
+        </button>
       </div>
 
       <section className="composer-input-panel">
@@ -95,7 +109,7 @@ export function FreeformComposer() {
             />
             <small>不需要完整句子，也不需要先整理立场。不会替你编造经历和外部事实。</small>
           </label>
-        ) : (
+        ) : mode === "paper" ? (
           <div className="paper-compose-fields">
             <label>
               <span>arXiv 论文链接</span>
@@ -116,11 +130,40 @@ export function FreeformComposer() {
               />
             </label>
           </div>
+        ) : (
+          <div className="paper-compose-fields">
+            <label>
+              <span>GitHub 仓库链接</span>
+              <input
+                type="url"
+                value={githubUrl}
+                onChange={(event) => setGithubUrl(event.target.value)}
+                placeholder="https://github.com/google/adk-python"
+              />
+              <small>读取 GitHub 官方 API、README 和最新 Release，不扫描代码或 Issue。</small>
+            </label>
+            <label>
+              <span>可选：你特别想强调什么</span>
+              <textarea
+                value={emphasis}
+                onChange={(event) => setEmphasis(event.target.value)}
+                placeholder="例如：重点说它替开发者省掉了哪些 Agent 编排工作。没有就留空。"
+              />
+            </label>
+          </div>
         )}
         <button className="action-button composer-generate" type="button" disabled={!canGenerate || working} onClick={generate}>
           {working
-            ? mode === "idea" ? "正在整理你的想法…" : "正在读取论文并写作…"
-            : mode === "idea" ? "扩写成短推文" : "读取论文并生成短帖"}
+            ? mode === "idea"
+              ? "正在整理你的想法…"
+              : mode === "paper"
+                ? "正在读取论文并写作…"
+                : "正在读取仓库并写作…"
+            : mode === "idea"
+              ? "扩写成短推文"
+              : mode === "paper"
+                ? "读取论文并生成短帖"
+                : "读取仓库并生成短帖"}
         </button>
         {error ? <p className="studio-error" role="alert">{error}</p> : null}
       </section>
@@ -136,8 +179,19 @@ export function FreeformComposer() {
           </div>
           {source ? (
             <div className="composer-paper-source">
-              <strong>{source.title}</strong>
-              <span>arXiv:{source.arxiv_id} · {source.authors.slice(0, 3).join("、")}</span>
+              {"arxiv_id" in source ? (
+                <>
+                  <strong>{source.title}</strong>
+                  <span>arXiv:{source.arxiv_id} · {source.authors.slice(0, 3).join("、")}</span>
+                </>
+              ) : (
+                <>
+                  <strong>{source.full_name}</strong>
+                  <span>
+                    {source.language ?? "未标注语言"} · {source.stars.toLocaleString()} stars
+                  </span>
+                </>
+              )}
             </div>
           ) : null}
           <textarea className="composer-draft" value={draft} onChange={(event) => setDraft(event.target.value)} />

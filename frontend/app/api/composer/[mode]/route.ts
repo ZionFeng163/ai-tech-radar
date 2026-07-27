@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const API_BASE = (process.env.API_URL ?? "http://backend:8000").replace(/\/$/, "");
-const ALLOWED_MODES = new Set(["idea", "paper"]);
+const ALLOWED_MODES = new Set(["idea", "paper", "github"]);
 
 export async function POST(
   request: Request,

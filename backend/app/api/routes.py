@@ -43,6 +43,7 @@ from app.api.schemas import (
 from app.composer import (
     ComposerResponse,
     ComposerService,
+    GitHubComposeRequest,
     IdeaComposeRequest,
     PaperComposeRequest,
 )
@@ -214,6 +215,19 @@ async def compose_paper(request: PaperComposeRequest) -> ComposerResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ProviderError as exc:
         raise HTTPException(status_code=502, detail=f"论文写作失败：{exc}") from exc
+
+
+@router.post("/composer/github", response_model=ComposerResponse, tags=["writing"])
+async def compose_github(request: GitHubComposeRequest) -> ComposerResponse:
+    service = _composer_service()
+    try:
+        return await service.compose_github(request.url, emphasis=request.emphasis)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"GitHub 项目写作失败：{exc}") from exc
 
 
 @router.get(

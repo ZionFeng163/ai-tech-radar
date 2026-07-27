@@ -2,7 +2,12 @@ import asyncio
 
 import httpx
 
-from app.composer.service import ComposerService, extract_arxiv_id, validate_composer_draft
+from app.composer.service import (
+    ComposerService,
+    extract_arxiv_id,
+    extract_github_repository,
+    validate_composer_draft,
+)
 from app.writing.config import WritingConfig
 from app.writing.provider import WritingResponse
 
@@ -61,6 +66,24 @@ def test_extract_arxiv_id_accepts_abs_pdf_and_prefixed_values() -> None:
         assert "只支持 arXiv" in str(exc)
     else:
         raise AssertionError("non-arXiv URLs must be rejected")
+
+
+def test_extract_github_repository_accepts_canonical_and_nested_urls() -> None:
+    assert extract_github_repository("https://github.com/google/adk-python") == (
+        "google",
+        "adk-python",
+    )
+    assert extract_github_repository("github.com/google/adk-python/tree/main") == (
+        "google",
+        "adk-python",
+    )
+
+    try:
+        extract_github_repository("https://example.com/google/adk-python")
+    except ValueError as exc:
+        assert "只支持 GitHub" in str(exc)
+    else:
+        raise AssertionError("non-GitHub URLs must be rejected")
 
 
 def test_paper_composer_reads_official_feed_and_appends_canonical_link() -> None:
@@ -155,6 +178,115 @@ def test_idea_composer_does_not_require_or_store_a_source() -> None:
     assert result.mode == "idea"
     assert result.source is None
     assert result.draft == draft
+
+
+def test_github_composer_reads_repo_readme_and_latest_release() -> None:
+    body = "\n\n".join(
+        [
+            "写 Agent 最烦的，往往不是模型调用，而是流程一复杂就得自己补路由、重试和状态管理。",
+            "ADK 把这些编排工作收进一个 Python 框架里，让 Agent 和 Workflow 成为主要抽象。",
+            "1️⃣ 图结构工作流负责循环、分支和并行。",
+            "2️⃣ README 给出的命令可以直接启动本地开发界面。",
+            "适合不想从头搭一套编排层的团队，但具体生产表现仍要看自己的任务和部署环境。",
+        ]
+    )
+    provider = FakeWritingProvider(body)
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(request.url.path)
+        if request.url.path == "/repos/google/adk-python":
+            return httpx.Response(
+                200,
+                json={
+                    "full_name": "google/adk-python",
+                    "description": "An open-source framework for building AI agents.",
+                    "stargazers_count": 25000,
+                    "forks_count": 3000,
+                    "language": "Python",
+                    "topics": ["agents", "workflow"],
+                    "license": {"spdx_id": "Apache-2.0"},
+                    "archived": False,
+                },
+            )
+        if request.url.path.endswith("/readme"):
+            return httpx.Response(
+                200,
+                text="# ADK\nRun locally with `adk run` or launch UI with `adk web`.",
+            )
+        return httpx.Response(
+            200,
+            json={
+                "name": "v2.0",
+                "tag_name": "v2.0.0",
+                "published_at": "2026-07-20T00:00:00Z",
+                "body": "Adds graph workflows and a task API.",
+            },
+        )
+
+    client = httpx.AsyncClient(
+        base_url="https://api.github.com",
+        transport=httpx.MockTransport(handler),
+    )
+    service = ComposerService(
+        WritingConfig(),
+        provider=provider,
+        github_client=client,
+    )
+    result = asyncio.run(
+        service.compose_github("https://github.com/google/adk-python")
+    )
+    asyncio.run(client.aclose())
+
+    assert requested == [
+        "/repos/google/adk-python",
+        "/repos/google/adk-python/readme",
+        "/repos/google/adk-python/releases/latest",
+    ]
+    assert result.mode == "github"
+    assert result.source is not None
+    assert result.source.full_name == "google/adk-python"
+    assert result.draft.endswith("🔗 GitHub: https://github.com/google/adk-python")
+    assert "adk web" in provider.prompts[0][1]
+    assert "graph workflows" in provider.prompts[0][1]
+
+
+def test_github_composer_allows_missing_readme_and_release() -> None:
+    body = "这个仓库公开的信息不多，目前能确认的是它用 Python 提供了一个 Agent 框架。" * 5
+    provider = FakeWritingProvider(body)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/repos/example/minimal":
+            return httpx.Response(
+                200,
+                json={
+                    "full_name": "example/minimal",
+                    "description": "Minimal agent framework",
+                    "stargazers_count": 12,
+                    "forks_count": 1,
+                    "language": "Python",
+                    "topics": [],
+                    "license": None,
+                    "archived": False,
+                },
+            )
+        return httpx.Response(404)
+
+    client = httpx.AsyncClient(
+        base_url="https://api.github.com",
+        transport=httpx.MockTransport(handler),
+    )
+    service = ComposerService(
+        WritingConfig(),
+        provider=provider,
+        github_client=client,
+    )
+    result = asyncio.run(service.compose_github("https://github.com/example/minimal"))
+    asyncio.run(client.aclose())
+
+    assert result.source is not None
+    assert result.source.stars == 12
+    assert result.draft.endswith("https://github.com/example/minimal")
 
 
 def test_composer_rejects_template_language() -> None:

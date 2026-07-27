@@ -29,6 +29,18 @@ class PaperComposeRequest(BaseModel):
         return value.strip()
 
 
+class GitHubComposeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = Field(min_length=8, max_length=500)
+    emphasis: str = Field(default="", max_length=1_000)
+
+    @field_validator("url", "emphasis")
+    @classmethod
+    def clean_text(cls, value: str) -> str:
+        return value.strip()
+
+
 class PaperSource(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -38,10 +50,20 @@ class PaperSource(BaseModel):
     canonical_url: str
 
 
+class GitHubSource(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    full_name: str
+    description: str | None
+    stars: int
+    language: str | None
+    canonical_url: str
+
+
 class ComposerResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    mode: Literal["idea", "paper"]
+    mode: Literal["idea", "paper", "github"]
     draft: str
     model: str
-    source: PaperSource | None = None
+    source: PaperSource | GitHubSource | None = None
