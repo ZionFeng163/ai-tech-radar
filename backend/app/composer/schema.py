@@ -34,6 +34,7 @@ class GitHubComposeRequest(BaseModel):
 
     url: str = Field(min_length=8, max_length=500)
     emphasis: str = Field(default="", max_length=1_000)
+    variation: int = Field(default=0, ge=0, le=10_000)
 
     @field_validator("url", "emphasis")
     @classmethod

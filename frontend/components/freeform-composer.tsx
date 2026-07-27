@@ -9,6 +9,7 @@ export function FreeformComposer() {
   const [fragments, setFragments] = useState("");
   const [paperUrl, setPaperUrl] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
+  const [githubVariation, setGithubVariation] = useState(0);
   const [emphasis, setEmphasis] = useState("");
   const [draft, setDraft] = useState("");
   const [source, setSource] = useState<ComposerResponse["source"]>(null);
@@ -21,6 +22,7 @@ export function FreeformComposer() {
     setDraft("");
     setSource(null);
     setError("");
+    setGithubVariation(0);
   }
 
   async function generate() {
@@ -30,7 +32,9 @@ export function FreeformComposer() {
     try {
       const payload = mode === "idea"
         ? { fragments }
-        : { url: mode === "paper" ? paperUrl : githubUrl, emphasis };
+        : mode === "paper"
+          ? { url: paperUrl, emphasis }
+          : { url: githubUrl, emphasis, variation: githubVariation };
       const response = await fetch(`/api/composer/${mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,6 +46,9 @@ export function FreeformComposer() {
       }
       setDraft(result.draft);
       setSource(result.source);
+      if (mode === "github") {
+        setGithubVariation((value) => value + 1);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "生成失败，请稍后重试");
     } finally {
@@ -140,7 +147,10 @@ export function FreeformComposer() {
                 onChange={(event) => setGithubUrl(event.target.value)}
                 placeholder="https://github.com/google/adk-python"
               />
-              <small>读取 GitHub 官方 API、README 和最新 Release，不扫描代码或 Issue。</small>
+              <small>
+                读取 GitHub 官方 API、README 和最新 Release，不扫描代码或 Issue。
+                重新生成会更换叙事结构，而不只是替换同义词。
+              </small>
             </label>
             <label>
               <span>可选：你特别想强调什么</span>

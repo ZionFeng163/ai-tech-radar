@@ -221,7 +221,11 @@ async def compose_paper(request: PaperComposeRequest) -> ComposerResponse:
 async def compose_github(request: GitHubComposeRequest) -> ComposerResponse:
     service = _composer_service()
     try:
-        return await service.compose_github(request.url, emphasis=request.emphasis)
+        return await service.compose_github(
+            request.url,
+            emphasis=request.emphasis,
+            variation=request.variation,
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

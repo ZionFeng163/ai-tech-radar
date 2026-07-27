@@ -234,7 +234,10 @@ def test_github_composer_reads_repo_readme_and_latest_release() -> None:
         github_client=client,
     )
     result = asyncio.run(
-        service.compose_github("https://github.com/google/adk-python")
+        service.compose_github(
+            "https://github.com/google/adk-python",
+            variation=2,
+        )
     )
     asyncio.run(client.aclose())
 
@@ -249,6 +252,7 @@ def test_github_composer_reads_repo_readme_and_latest_release() -> None:
     assert result.draft.endswith("🔗 GitHub: https://github.com/google/adk-python")
     assert "adk web" in provider.prompts[0][1]
     assert "graph workflows" in provider.prompts[0][1]
+    assert "对照切入" in provider.prompts[0][1]
 
 
 def test_github_composer_allows_missing_readme_and_release() -> None:
@@ -299,3 +303,18 @@ def test_composer_rejects_template_language() -> None:
         assert "模板化表达" in str(exc)
     else:
         raise AssertionError("template-like composer output must be rejected")
+
+
+def test_github_composer_rejects_hype_and_forced_metaphors() -> None:
+    try:
+        validate_composer_draft(
+            "这个框架把不确定性关进了笼子，这意味着它适合所有企业级应用。" * 8,
+            "github",
+        )
+    except ValueError as exc:
+        assert "模板化表达" in str(exc)
+        assert "关进了笼子" in str(exc)
+        assert "这意味着" in str(exc)
+        assert "企业级" in str(exc)
+    else:
+        raise AssertionError("hype-heavy GitHub output must be rejected")
