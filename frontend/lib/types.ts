@@ -179,6 +179,7 @@ export interface WritingReview {
   thesis_clarity: number;
   originality: number;
   technical_clarity: number;
+  accessibility: number;
   human_voice: number;
   issues: WritingReviewIssue[];
   strongest_line: string;

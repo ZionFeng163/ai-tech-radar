@@ -40,7 +40,9 @@ class WritingAngleSet(BaseModel):
 class ReviewIssue(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    category: Literal["fact", "generic", "ai_tone", "logic", "voice", "format"]
+    category: Literal[
+        "fact", "generic", "ai_tone", "logic", "voice", "jargon", "format"
+    ]
     severity: Literal["high", "medium", "low"]
     quote: str = Field(max_length=500)
     problem: str = Field(min_length=2, max_length=500)
@@ -54,6 +56,7 @@ class WritingReview(BaseModel):
     thesis_clarity: float = Field(ge=0, le=10)
     originality: float = Field(ge=0, le=10)
     technical_clarity: float = Field(ge=0, le=10)
+    accessibility: float = Field(default=0, ge=0, le=10)
     human_voice: float = Field(ge=0, le=10)
     issues: list[ReviewIssue] = Field(max_length=12)
     strongest_line: str = Field(max_length=500)

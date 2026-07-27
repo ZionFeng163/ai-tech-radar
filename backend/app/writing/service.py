@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from uuid import UUID
 
@@ -125,8 +126,9 @@ class WritingService:
         session.commit()
         prompt = self._safe_json_prompt("写作任务", request_pack)
         draft = ""
+        automatic_review: WritingReview | None = None
         try:
-            for attempt in range(3):
+            for attempt in range(4):
                 response = await self.provider.complete(self._draft_system_prompt(), prompt)
                 draft = response.output_text.strip()
                 try:
@@ -137,8 +139,20 @@ class WritingService:
                         short_post_max=280 if metadata_only else 360,
                         short_post_paragraphs=3 if metadata_only else 5,
                     )
-                except ValueError as exc:
-                    if attempt == 2:
+                    review_response = await self.provider.complete(
+                        self._review_system_prompt(),
+                        self._safe_json_prompt(
+                            "自动审校任务",
+                            request_pack | {"draft": draft},
+                        ),
+                        json_schema=strict_schema(WritingReview),
+                    )
+                    automatic_review = WritingReview.model_validate_json(
+                        _strip_fence(review_response.output_text)
+                    )
+                    _validate_automatic_review(automatic_review)
+                except (ValidationError, ValueError) as exc:
+                    if attempt == 3:
                         raise
                     prompt += (
                         "\n\n上一次草稿未通过发布格式校验："
@@ -146,7 +160,7 @@ class WritingService:
                     )
                 else:
                     break
-        except (ProviderError, ValueError) as exc:
+        except (ProviderError, ValidationError, ValueError) as exc:
             self._record_error(session, project, exc)
             raise
 
@@ -154,7 +168,9 @@ class WritingService:
         project.output_format = output_format
         project.human_input = human_input.model_dump(mode="json")
         project.draft_content = draft
-        project.review = {}
+        project.review = (
+            automatic_review.model_dump(mode="json") if automatic_review else {}
+        )
         project.status = "draft_ready"
         self._record_model(project)
         session.commit()
@@ -277,6 +293,7 @@ class WritingService:
             "label": angle.label,
             "thesis": angle.thesis,
             "evidence": angle.evidence,
+            "uncertainty": angle.uncertainty,
             "reader_gain": angle.reader_gain,
         }
 
@@ -342,6 +359,13 @@ def _validate_draft_format(
                 f"观点推文最多 {short_post_paragraphs} 个短段落，"
                 f"实际有 {len(paragraphs)} 个"
             )
+        jargon_tokens = set(re.findall(r"\b[A-Z][A-Za-z0-9.+-]{1,}\b", content))
+        if len(jargon_tokens) > 4:
+            raise ValueError(
+                "观点推文包含过多英文术语或缩写："
+                + ", ".join(sorted(jargon_tokens))
+                + "。只保留决定观点的概念，并用白话解释"
+            )
     style_markers: tuple[str, ...] = (
         "释放了一个明确信号",
         "重塑格局",
@@ -383,6 +407,15 @@ def _validate_draft_format(
         "恰恰说明",
         "标题里的矛盾",
         "工具变了",
+        "这证明",
+        "硬骨头都能啃下来",
+        "是个信号",
+        "真正落地的关键",
+        "才是让",
+        "不需要动用最高规格",
+        "跑得很快",
+        "不用一直占着",
+        "更划算",
         "编辑判断",
         "行业共识",
         "用户感知",
@@ -402,3 +435,38 @@ def _validate_draft_format(
     oversized = [index + 1 for index, post in enumerate(posts) if len(post) > 280]
     if oversized:
         raise ValueError(f"Thread 第 {', '.join(map(str, oversized))} 条超过 280 个字符")
+
+
+def _validate_automatic_review(review: WritingReview) -> None:
+    blocking = [
+        issue
+        for issue in review.issues
+        if issue.severity == "high" and issue.category in {"fact", "logic", "jargon"}
+    ]
+    actionable = [
+        issue
+        for issue in review.issues
+        if issue.severity in {"high", "medium"}
+        and issue.category in {"fact", "logic", "jargon", "generic", "voice"}
+    ]
+    details = "; ".join(
+        f"{issue.category}: {issue.problem}，建议 {issue.suggestion}"
+        for issue in actionable[:4]
+    )
+    feedback = f"。具体问题：{details}" if details else ""
+    if review.accessibility < 7:
+        raise ValueError(
+            f"公众可读性只有 {review.accessibility:.1f}/10；"
+            f"请减少术语并先解释实际作用{feedback}"
+        )
+    if review.technical_clarity < 7:
+        raise ValueError(
+            f"技术清晰度只有 {review.technical_clarity:.1f}/10；"
+            f"请保留机制但修正含混或夸大表达{feedback}"
+        )
+    if blocking:
+        details = "; ".join(
+            f"{issue.category}: {issue.problem}，建议 {issue.suggestion}"
+            for issue in blocking[:3]
+        )
+        raise ValueError(f"自动审校发现阻断问题：{details}")

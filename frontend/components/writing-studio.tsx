@@ -246,6 +246,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
 
           <fieldset className="format-picker">
             <legend>输出形式</legend>
+            <p className="studio-help">默认面向对技术感兴趣的普通读者：保留关键机制，但第一次出现的术语会立即用白话解释。</p>
             {FORMAT_OPTIONS.map((option) => (
               <label className={format === option.value ? "is-selected" : ""} key={option.value}>
                 <input type="radio" name="writing-format" value={option.value} checked={format === option.value} disabled={!hasSourceExcerpt && option.value === "article"} onChange={() => setFormat(option.value)} />
@@ -287,6 +288,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             <Score label="论点" value={project.review.thesis_clarity} />
             <Score label="原创认识" value={project.review.originality} />
             <Score label="技术清晰" value={project.review.technical_clarity} />
+            <Score label="公众可读" value={project.review.accessibility} />
             <Score label="人味" value={project.review.human_voice} />
           </div>
           {project.review.issues.length ? (

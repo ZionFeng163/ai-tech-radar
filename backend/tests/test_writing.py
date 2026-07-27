@@ -5,8 +5,12 @@ import httpx
 
 from app.writing.config import DEFAULT_WRITING_CONFIG_PATH, WritingConfig
 from app.writing.provider import BailianWritingProvider
-from app.writing.schema import WritingAngleSet
-from app.writing.service import WritingService, _validate_draft_format
+from app.writing.schema import WritingAngleSet, WritingReview
+from app.writing.service import (
+    WritingService,
+    _validate_automatic_review,
+    _validate_draft_format,
+)
 
 
 def test_writing_config_uses_separate_qwen_pipeline() -> None:
@@ -14,7 +18,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-plus-2026-05-26"
-    assert config.prompt_version == "writing-studio-v3"
+    assert config.prompt_version == "writing-studio-v4-public-readable"
     assert config.max_output_tokens > 2_000
 
 
@@ -150,6 +154,51 @@ def test_reference_style_rejects_abstract_ai_diagnosis() -> None:
         assert "模板化表达" in str(exc)
     else:
         raise AssertionError("abstract AI diagnosis must trigger a rewrite")
+
+
+def test_short_post_rejects_excessive_jargon_density() -> None:
+    try:
+        _validate_draft_format(
+            "AREX 基于 Qwen MoE，通过 NIM 和 NVFP4 运行，并在 QCalEval 上测试。",
+            "short_post",
+        )
+    except ValueError as exc:
+        assert "过多英文术语" in str(exc)
+    else:
+        raise AssertionError("short posts must translate rather than stack jargon")
+
+
+def test_short_post_rejects_colloquial_overclaiming() -> None:
+    try:
+        _validate_draft_format(
+            "这证明低精度已经把量子校准这块硬骨头都能啃下来。",
+            "short_post",
+        )
+    except ValueError as exc:
+        assert "模板化表达" in str(exc)
+    else:
+        raise AssertionError("plain language must not strengthen unsupported claims")
+
+
+def test_automatic_review_blocks_low_public_accessibility() -> None:
+    review = WritingReview(
+        verdict="术语过密，需要改写",
+        thesis_clarity=8,
+        originality=8,
+        technical_clarity=8,
+        accessibility=5,
+        human_voice=7,
+        issues=[],
+        strongest_line="",
+        cut_suggestions=[],
+    )
+
+    try:
+        _validate_automatic_review(review)
+    except ValueError as exc:
+        assert "公众可读性" in str(exc)
+    else:
+        raise AssertionError("drafts with low accessibility must be rewritten")
 
 
 def test_angle_schema_allows_one_grounded_angle_for_thin_sources() -> None:
