@@ -27,7 +27,7 @@ const article = {
   heat_score: 8.1,
   signal_type: "technical" as const,
   technical_overview: "通过新的推理调度方法降低模型服务延迟。",
-  novelty_summary: "把原本分离的调度环节合并，减少了重复开销。",
+  novelty_summary: "新意在于把原本分离的调度环节合并，减少了重复开销。",
   heat_reasons: ["可能直接降低开发者部署成本"],
   credibility_score: 9.1,
   open_source_status: "open" as const,
@@ -83,6 +83,10 @@ describe("Home", () => {
       "href",
       "/topics/inference",
     );
+    expect(
+      screen.getByText("把原本分离的调度环节合并，减少了重复开销。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(article.novelty_summary)).not.toBeInTheDocument();
     expect(screen.getByText("数据清理")).toBeInTheDocument();
   });
 });

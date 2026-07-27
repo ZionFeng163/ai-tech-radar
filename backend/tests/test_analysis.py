@@ -11,6 +11,7 @@ from app.analysis.evaluation import evaluate, load_evaluation_samples
 from app.analysis.pipeline import (
     AnalysisPipeline,
     _evidence_quote_found,
+    _normalize_brief_language,
     _normalize_evidence,
     _normalize_temporal_framing,
     _validate_temporal_grounding,
@@ -28,6 +29,7 @@ from app.analysis.schema import (
     SCHEMA_VERSION,
     ArticleAnalysisInput,
     ArticleAnalysisV1,
+    ArticleBriefV1,
     OpenSourceStatus,
     TechnicalCategory,
     VerifiedFact,
@@ -196,6 +198,31 @@ def test_analysis_normalizes_stale_model_ranking_language() -> None:
     assert "闭源模型（项目方发布时的对照）" in normalized.summary_zh
     assert "首次实现" not in normalized.novelty_summary
     _validate_temporal_grounding(normalized)
+
+
+def test_brief_removes_field_label_style_openings() -> None:
+    output = ArticleBriefV1(
+        schema_version="1.0",
+        technical_category=TechnicalCategory.INFERENCE,
+        signal_type="technical",
+        tags=["inference"],
+        summary_zh=(
+            "新意在于把两个推理步骤合并，减少了一次重复计算并缩短响应时间，"
+            "资料还提供了相同测试条件下的对照结果。"
+        ),
+        technical_overview="系统把原本分开的调度步骤合并执行，减少中间结果搬运。",
+        novelty_summary="显著亮点：在相同测试条件下减少一次调度开销。",
+        heat_reasons=["开发者可以直接观察响应延迟变化"],
+        heat_score=6,
+        open_source_status=OpenSourceStatus.OPEN,
+        credibility_score=8,
+        importance_score=7,
+    )
+
+    normalized = _normalize_brief_language(output)
+
+    assert normalized.summary_zh.startswith("把两个推理步骤合并")
+    assert normalized.novelty_summary.startswith("在相同测试条件下")
 
 
 def test_committed_schema_and_human_evaluation_set_are_versioned() -> None:

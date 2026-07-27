@@ -13,7 +13,7 @@ export function ArticleCard({ article, index }: ArticleCardProps) {
     ? categoryLabels[article.primary_category]
     : "待分类";
   const source = article.sources[0]?.name ?? "未知来源";
-  const deck = article.novelty_summary ?? article.summary;
+  const deck = cleanCardDeck(article.novelty_summary ?? article.summary);
 
   return (
     <article className="article-card">
@@ -50,4 +50,15 @@ export function ArticleCard({ article, index }: ArticleCardProps) {
       </div>
     </article>
   );
+}
+
+function cleanCardDeck(value: string | null): string | null {
+  if (!value) return null;
+  return value
+    .replace(
+      /^(?:显著亮点|新意(?:在于)?|新在(?:于)?|新点(?:在于)?|亮点(?:在于)?)[：:，,\s]*/,
+      "",
+    )
+    .replace(/^并非新颖的技术发布，而是/, "这不是一次新技术发布，而是")
+    .trim();
 }

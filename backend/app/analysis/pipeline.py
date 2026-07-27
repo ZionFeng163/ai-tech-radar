@@ -116,6 +116,8 @@ class AnalysisPipeline:
                         if self.depth == "brief"
                         else ArticleAnalysisV1.model_validate_json(response.output_text)
                     )
+                    if isinstance(output, ArticleBriefV1):
+                        output = _normalize_brief_language(output)
                     if isinstance(output, ArticleAnalysisV1):
                         output = _normalize_temporal_framing(output)
                         _validate_verified_facts(output, request.article)
@@ -417,6 +419,26 @@ def _validate_temporal_grounding(output: ArticleAnalysisV1) -> None:
             + "、".join(found)
             + "。请改成项目方发布时的评测对照"
         )
+
+
+def _normalize_brief_language(output: ArticleBriefV1) -> ArticleBriefV1:
+    """Keep quick-read copy from echoing internal field labels."""
+
+    heading_prefix = re.compile(
+        r"^(?:显著亮点|新意(?:在于)?|新在(?:于)?|新点(?:在于)?|亮点(?:在于)?)"
+        r"[：:，,\s]*"
+    )
+
+    def rewrite(value: str) -> str:
+        rewritten = heading_prefix.sub("", value.strip()).strip()
+        return rewritten if len(rewritten) >= 10 else value.strip()
+
+    return output.model_copy(
+        update={
+            "summary_zh": rewrite(output.summary_zh),
+            "novelty_summary": rewrite(output.novelty_summary),
+        }
+    )
 
 
 def _normalize_temporal_framing(output: ArticleAnalysisV1) -> ArticleAnalysisV1:

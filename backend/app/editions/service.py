@@ -18,9 +18,8 @@ LOGGER = logging.getLogger(__name__)
 
 class ManualRadarService:
     DEFAULT_SOURCE_LIMITS = {
-        "hacker-news": 15,
+        "hacker-news": 30,
         "dev-community": 12,
-        "github-releases": 8,
         "arxiv": 5,
         "hugging-face": 5,
     }

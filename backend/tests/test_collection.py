@@ -20,7 +20,6 @@ def test_registry_contains_all_mvp_sources() -> None:
     assert SourceRegistry().slugs == (
         "hacker-news",
         "dev-community",
-        "github-releases",
         "arxiv",
         "hugging-face",
     )
@@ -71,12 +70,11 @@ def test_schedule_registration_is_idempotent_and_serial_per_source() -> None:
 
     assert [job.id for job in jobs] == [
         "collect:arxiv",
-        "collect:github-releases",
         "collect:hugging-face",
     ]
     assert all(job.max_instances == 1 and job.coalesce is True for job in jobs)
     assert isinstance(scheduler.get_job("collect:arxiv").trigger, IntervalTrigger)
-    assert isinstance(scheduler.get_job("collect:github-releases").trigger, CronTrigger)
+    assert isinstance(scheduler.get_job("collect:hugging-face").trigger, CronTrigger)
 
 
 def test_one_scheduled_source_failure_does_not_block_another() -> None:

@@ -14,7 +14,7 @@ FastAPI 提供文章列表、详情、分类聚合、每日简报和全文搜索
 | 参数 | 含义 |
 | --- | --- |
 | `date_from` / `date_to` | UTC 发布日期范围，首尾日期均包含 |
-| `source` | 来源 slug，如 `arxiv`、`github-releases`、`hugging-face` |
+| `source` | 来源 slug，如 `hacker-news`、`dev-community`、`arxiv`、`hugging-face` |
 | `category` | 主技术分类 |
 | `importance_min` | 最低重要性评分，0 至 10 |
 | `open_source_status` | `open`、`partial`、`closed` 或 `unknown` |

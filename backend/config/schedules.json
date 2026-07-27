@@ -5,11 +5,6 @@
       "trigger": "interval",
       "interval_minutes": 60
     },
-    "github-releases": {
-      "enabled": true,
-      "trigger": "cron",
-      "cron": "15 */2 * * *"
-    },
     "hugging-face": {
       "enabled": true,
       "trigger": "cron",
