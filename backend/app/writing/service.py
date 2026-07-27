@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -78,13 +79,29 @@ class WritingService:
         project.status = "generating_angles"
         project.error_summary = None
         session.commit()
+        prompt = self._safe_json_prompt("热点资料", source_pack)
         try:
-            response = await self.provider.complete(
-                self._angle_system_prompt(),
-                self._safe_json_prompt("热点资料", source_pack),
-                json_schema=strict_schema(WritingAngleSet),
-            )
-            angle_set = WritingAngleSet.model_validate_json(_strip_fence(response.output_text))
+            for attempt in range(4):
+                response = await self.provider.complete(
+                    self._angle_system_prompt(),
+                    prompt,
+                    json_schema=strict_schema(WritingAngleSet),
+                )
+                angle_set = WritingAngleSet.model_validate_json(
+                    _strip_fence(response.output_text)
+                )
+                try:
+                    _validate_angle_set(angle_set, source_pack)
+                except ValueError as exc:
+                    if attempt == 3:
+                        raise
+                    prompt += (
+                        "\n\n上一次角度未通过编辑校验："
+                        f"{exc}。请重新输出完整 JSON。观点先说普通读者能理解的实际作用；"
+                        "版本比较只陈述原文表格，不得把历史对照称为当前前沿。"
+                    )
+                else:
+                    break
         except (ProviderError, ValidationError, ValueError) as exc:
             self._record_error(session, project, exc)
             raise
@@ -249,6 +266,8 @@ class WritingService:
             "analysis": deep_analysis if generated_context_allowed else {},
             "editorial_analysis": deep_analysis if not generated_context_allowed else {},
             "analysis_depth": analysis_depth,
+            "source_published_at": article.published_at.isoformat(),
+            "writing_generated_at": datetime.now(UTC).isoformat(),
             "source_excerpt": content[: self.config.max_input_characters],
             "source_metrics": source_metrics,
             "source_quality": source_quality,
@@ -257,6 +276,11 @@ class WritingService:
                 "可以基于标题给出编辑判断，但必须写成作者自己的推断。"
                 if source_quality == "metadata_only"
                 else "可引用正文中能够直接找到的事实。"
+            ),
+            "freshness_note": (
+                "模型版本和评测结果只能按原始资料发布时的对照表陈述。"
+                "资料出现某个 GPT、Claude、Opus、Gemini 等版本，不代表它仍是当前最新、"
+                "最强或前沿版本；除非另有当日可靠资料，不得作这种时效性判断。"
             ),
             "source_urls": list(
                 dict.fromkeys(
@@ -336,6 +360,73 @@ def _strip_fence(value: str) -> str:
         if text.endswith("```"):
             text = text[:-3]
     return text.strip()
+
+
+def _validate_angle_set(
+    angle_set: WritingAngleSet, source_pack: Mapping[str, object]
+) -> None:
+    """Keep editorial angles readable and prevent stale benchmark framing."""
+
+    source_text = "\n".join(
+        str(source_pack.get(key) or "")
+        for key in ("title", "source_excerpt")
+    ).casefold()
+    version_pattern = re.compile(
+        r"\b(?:GPT|Claude|Opus|Gemini|Grok)[-\s]?[A-Za-z0-9.]+\b",
+        re.IGNORECASE,
+    )
+    jargon_markers = (
+        "显式维护",
+        "已验证发现",
+        "被拒候选项",
+        "未决约束",
+        "长程任务",
+        "高鲁棒性",
+        "关键工程细节",
+        "Research Agent",
+        "LLM 长程",
+    )
+    stale_markers = (
+        "当前前沿",
+        "前沿闭源",
+        "顶尖闭源",
+        "最新模型",
+        "当前最强",
+        "领先闭源",
+        "超越闭源",
+    )
+    report_markers = ("学习如何", "掌握构建", "认识到", "重新评估")
+
+    for angle in angle_set.angles:
+        public_text = "\n".join((angle.label, angle.thesis, angle.reader_gain))
+        if "`" in public_text or re.search(r"\b[a-z]+_[a-z_]+\b", public_text):
+            raise ValueError(
+                f"角度“{angle.label}”把接口名或代码写法直接放进了观点，"
+                "应先翻译成它给读者带来的实际作用"
+            )
+        found_jargon = [marker for marker in jargon_markers if marker in public_text]
+        if found_jargon:
+            raise ValueError(
+                f"角度“{angle.label}”仍像研究报告，普通读者难以理解："
+                + "、".join(found_jargon)
+            )
+        found_report = [marker for marker in report_markers if marker in angle.reader_gain]
+        if found_report:
+            raise ValueError(
+                f"角度“{angle.label}”的读者收益写成了课程目标："
+                + "、".join(found_report)
+            )
+        found_stale = [marker for marker in stale_markers if marker in public_text]
+        if found_stale:
+            raise ValueError(
+                f"角度“{angle.label}”把原文中的版本对照误写成当前市场判断："
+                + "、".join(found_stale)
+            )
+        for version in version_pattern.findall(public_text):
+            if version.casefold() not in source_text:
+                raise ValueError(
+                    f"角度“{angle.label}”出现原始资料没有的模型版本 {version}"
+                )
 
 
 def _validate_draft_format(

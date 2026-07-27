@@ -5,9 +5,10 @@ import httpx
 
 from app.writing.config import DEFAULT_WRITING_CONFIG_PATH, WritingConfig
 from app.writing.provider import BailianWritingProvider
-from app.writing.schema import WritingAngleSet, WritingReview
+from app.writing.schema import WritingAngle, WritingAngleSet, WritingReview
 from app.writing.service import (
     WritingService,
+    _validate_angle_set,
     _validate_automatic_review,
     _validate_draft_format,
 )
@@ -18,7 +19,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-plus-2026-05-26"
-    assert config.prompt_version == "writing-studio-v4-public-readable"
+    assert config.prompt_version == "writing-studio-v5-readable-freshness"
     assert config.max_output_tokens > 2_000
 
 
@@ -206,3 +207,85 @@ def test_angle_schema_allows_one_grounded_angle_for_thin_sources() -> None:
 
     assert schema["properties"]["angles"]["minItems"] == 1
     assert schema["properties"]["angles"]["maxItems"] == 3
+
+
+def _angle(**overrides: object) -> WritingAngle:
+    values: dict[str, object] = {
+        "id": "technical",
+        "label": "少走回头路",
+        "thesis": "它会记住哪些资料已经确认、哪些线索走不通，研究越久越不容易绕回原路。",
+        "signal": "长时间研究时减少重复搜索。",
+        "mechanism": "模型更新内部研究状态。",
+        "change": "保留有效线索并跳过已否定路径。",
+        "tension": "",
+        "evidence": ["原文说明它会保留和拒绝候选线索。"],
+        "counterargument": "",
+        "uncertainty": "",
+        "reader_gain": "看懂这个 Agent 为什么能连续查资料而不总是从头再来。",
+        "recommended_format": "short_post",
+        "value_score": 8,
+    }
+    values.update(overrides)
+    return WritingAngle.model_validate(values)
+
+
+def test_angle_rejects_internal_interface_language_in_public_fields() -> None:
+    angle_set = WritingAngleSet(
+        angles=[
+            _angle(
+                thesis=(
+                    "AREX 通过 update_context 显式维护已验证发现、"
+                    "被拒候选项和未决约束，避免重复探索无效路径。"
+                )
+            )
+        ]
+    )
+
+    try:
+        _validate_angle_set(
+            angle_set,
+            {"title": "AREX", "source_excerpt": "The model invokes update_context."},
+        )
+    except ValueError as exc:
+        assert "实际作用" in str(exc) or "研究报告" in str(exc)
+    else:
+        raise AssertionError("internal state vocabulary must be translated for readers")
+
+
+def test_angle_rejects_stale_benchmark_as_current_frontier() -> None:
+    angle_set = WritingAngleSet(
+        angles=[
+            _angle(
+                label="超越闭源前沿",
+                thesis="AREX 在项目表格里超过 GPT-5.4，说明它已经超越闭源前沿。",
+            )
+        ]
+    )
+
+    try:
+        _validate_angle_set(
+            angle_set,
+            {"title": "AREX", "source_excerpt": "GPT-5.4 82.7; AREX 85.9"},
+        )
+    except ValueError as exc:
+        assert "当前市场判断" in str(exc)
+    else:
+        raise AssertionError("historical benchmark must not be framed as current frontier")
+
+
+def test_angle_rejects_model_version_missing_from_original_source() -> None:
+    angle_set = WritingAngleSet(
+        angles=[
+            _angle(thesis="AREX 在项目方的测试表中超过了 GPT-5.6。")
+        ]
+    )
+
+    try:
+        _validate_angle_set(
+            angle_set,
+            {"title": "AREX", "source_excerpt": "GPT-5.4 82.7; AREX 85.9"},
+        )
+    except ValueError as exc:
+        assert "原始资料没有" in str(exc)
+    else:
+        raise AssertionError("the writer must not silently update model versions")

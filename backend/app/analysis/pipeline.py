@@ -117,7 +117,9 @@ class AnalysisPipeline:
                         else ArticleAnalysisV1.model_validate_json(response.output_text)
                     )
                     if isinstance(output, ArticleAnalysisV1):
+                        output = _normalize_temporal_framing(output)
                         _validate_verified_facts(output, request.article)
+                        _validate_temporal_grounding(output)
                 except (ValidationError, ValueError) as exc:
                     self._fail_attempt(
                         run_id,
@@ -135,7 +137,8 @@ class AnalysisPipeline:
                             + "。请重新输出完整 JSON。verified_facts 的 evidence_quote "
                             "必须复制原文，不得翻译或跨段拼接；只有省略同一局部段落或"
                             "表格行中的格式标记时才可使用省略号；"
-                            "无法逐字引用的 claim 必须删除。"
+                            "无法逐字引用的 claim 必须删除。模型版本比较只能表述为"
+                            "项目方发布时的评测对照，不得称作当前前沿、顶尖或最新。"
                         ),
                     )
                 else:
@@ -320,18 +323,23 @@ def _evidence_quote_found(quote: str, corpus: str) -> bool:
     ]
     if len(segments) < 2:
         return False
-    cursor = 0
-    first_start: int | None = None
-    final_end = 0
-    for segment in segments:
-        position = corpus.find(segment, cursor)
-        if position < 0:
-            return False
-        if first_start is None:
-            first_start = position
-        final_end = position + len(segment)
-        cursor = final_end
-    return first_start is not None and final_end - first_start <= 800
+    first_segment = segments[0]
+    first_start = corpus.find(first_segment)
+    while first_start >= 0:
+        cursor = first_start + len(first_segment)
+        final_end = cursor
+        matched = True
+        for segment in segments[1:]:
+            position = corpus.find(segment, cursor)
+            if position < 0 or position - first_start > 800:
+                matched = False
+                break
+            final_end = position + len(segment)
+            cursor = final_end
+        if matched and final_end - first_start <= 800:
+            return True
+        first_start = corpus.find(first_segment, first_start + 1)
+    return False
 
 
 def _validate_verified_facts(
@@ -371,3 +379,78 @@ def _validate_verified_facts(
             "deep analysis is missing required editorial depth fields: "
             + ", ".join(empty)
         )
+
+
+def _validate_temporal_grounding(output: ArticleAnalysisV1) -> None:
+    """Reject turning a source's dated benchmark table into a current ranking."""
+
+    values = [
+        output.summary_zh,
+        output.why_it_matters,
+        output.technical_overview,
+        output.novelty_summary,
+        *output.heat_reasons,
+        *output.writing_angles,
+        *output.second_order_implications,
+    ]
+    stale_markers = (
+        "当前前沿",
+        "前沿模型",
+        "前沿闭源",
+        "顶尖模型",
+        "顶尖闭源",
+        "当前最强",
+        "最新模型",
+        "首次实现",
+    )
+    found = sorted(
+        {
+            marker
+            for value in values
+            for marker in stale_markers
+            if value and marker in value
+        }
+    )
+    if found:
+        raise ValueError(
+            "模型版本的时效表述越过了原始资料边界："
+            + "、".join(found)
+            + "。请改成项目方发布时的评测对照"
+        )
+
+
+def _normalize_temporal_framing(output: ArticleAnalysisV1) -> ArticleAnalysisV1:
+    """Deterministically remove current-ranking claims from dated source comparisons."""
+
+    replacements = (
+        ("项目方选作对照的闭源模型", "闭源模型（项目方发布时的对照）"),
+        ("项目方选作对照的模型", "模型（项目方发布时的对照）"),
+        ("前沿闭源模型", "闭源模型（项目方发布时的对照）"),
+        ("顶尖闭源模型", "闭源模型（项目方发布时的对照）"),
+        ("当前前沿", "项目方发布时的评测对照"),
+        ("当前最强", "项目方表格中的对照"),
+        ("前沿模型", "模型（项目方发布时的对照）"),
+        ("顶尖模型", "模型（项目方发布时的对照）"),
+        ("最新模型", "资料中的对照模型"),
+        ("首次实现了", "展示了"),
+        ("首次实现", "展示"),
+    )
+
+    def rewrite(value: str) -> str:
+        for old, new in replacements:
+            value = value.replace(old, new)
+        return value
+
+    return output.model_copy(
+        update={
+            "summary_zh": rewrite(output.summary_zh),
+            "why_it_matters": rewrite(output.why_it_matters),
+            "technical_overview": rewrite(output.technical_overview),
+            "novelty_summary": rewrite(output.novelty_summary),
+            "heat_reasons": [rewrite(value) for value in output.heat_reasons],
+            "writing_angles": [rewrite(value) for value in output.writing_angles],
+            "second_order_implications": [
+                rewrite(value) for value in output.second_order_implications
+            ],
+        }
+    )

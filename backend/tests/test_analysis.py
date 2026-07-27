@@ -12,6 +12,8 @@ from app.analysis.pipeline import (
     AnalysisPipeline,
     _evidence_quote_found,
     _normalize_evidence,
+    _normalize_temporal_framing,
+    _validate_temporal_grounding,
     _validate_verified_facts,
 )
 from app.analysis.provider import (
@@ -139,6 +141,61 @@ def test_evidence_quote_allows_only_nearby_ordered_omissions() -> None:
 
     assert _evidence_quote_found("AREX-Base ... 85.9", corpus)
     assert not _evidence_quote_found("AREX-Base ... 99.9", corpus)
+
+
+def test_evidence_quote_uses_nearby_duplicate_instead_of_first_distant_match() -> None:
+    corpus = _normalize_evidence(
+        "AREX-Base model family "
+        + "x" * 900
+        + "<tr><td>AREX-Base</td><td>122B</td><td>85.9</td></tr>"
+    )
+
+    assert _evidence_quote_found("AREX-Base ... 85.9", corpus)
+
+
+def test_analysis_rejects_historical_benchmark_as_current_frontier() -> None:
+    output = _valid_output().model_copy(
+        update={
+            "summary_zh": (
+                "项目方将 AREX 与 GPT-5.4 对比，并称其达到前沿闭源模型水平。"
+            )
+        }
+    )
+
+    try:
+        _validate_temporal_grounding(output)
+    except ValueError as exc:
+        assert "时效表述" in str(exc)
+    else:
+        raise AssertionError("a dated benchmark must not become a current model ranking")
+
+
+def test_analysis_allows_benchmark_framed_as_project_table() -> None:
+    output = _valid_output().model_copy(
+        update={
+            "summary_zh": (
+                "在项目方发布的评测表中，AREX 的 BrowseComp 得分高于 GPT-5.4。"
+            )
+        }
+    )
+
+    _validate_temporal_grounding(output)
+
+
+def test_analysis_normalizes_stale_model_ranking_language() -> None:
+    output = _valid_output().model_copy(
+        update={
+            "summary_zh": "项目方把 AREX 与 GPT-5.4 等前沿闭源模型进行了对比。",
+            "novelty_summary": "它首次实现了开源模型对顶尖模型的赶超。",
+        }
+    )
+
+    normalized = _normalize_temporal_framing(output)
+
+    assert "前沿" not in normalized.summary_zh
+    assert "闭源模型（项目方发布时的对照）" in normalized.summary_zh
+    assert "首次实现" not in normalized.novelty_summary
+    _validate_temporal_grounding(normalized)
 
 
 def test_committed_schema_and_human_evaluation_set_are_versioned() -> None:
