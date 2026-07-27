@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DeepAnalysisButton } from "@/components/deep-analysis-button";
 import type {
@@ -37,19 +37,12 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const hasSourceExcerpt = (article.content?.trim().length ?? 0) >= SOURCE_EXCERPT_MIN_CHARACTERS;
+  const deepAnalysisReady = article.analysis_depth === "deep";
 
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-    void requestProject(`/api/articles/${encodeURIComponent(article.id)}/writing-project`, {
-      method: "POST",
-    }).then(hydrate).catch(showError);
-  }, [article.id]);
-
-  function hydrate(next: WritingProject) {
+  const hydrate = useCallback((next: WritingProject) => {
     setProject(next);
     setSelectedAngle(next.selected_angle_id ?? next.angle_options[0]?.id ?? "");
-    setFormat(next.output_format);
+    setFormat(!hasSourceExcerpt && next.output_format === "article" ? "short_post" : next.output_format);
     setHumanInput({
       ...EMPTY_INPUT,
       core_take: next.human_input?.core_take ?? "",
@@ -57,12 +50,20 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
     setDraft(next.draft_content ?? "");
     setOperation(null);
     setError("");
-  }
+  }, [hasSourceExcerpt]);
 
-  function showError(reason: unknown) {
+  const showError = useCallback((reason: unknown) => {
     setOperation(null);
     setError(reason instanceof Error ? reason.message : "操作失败，请稍后重试");
-  }
+  }, []);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    void requestProject(`/api/articles/${encodeURIComponent(article.id)}/writing-project`, {
+      method: "POST",
+    }).then(hydrate).catch(showError);
+  }, [article.id, hydrate, showError]);
 
   async function generateAngles() {
     if (!project) return;
@@ -76,7 +77,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
       const recommended = next.angle_options[0];
       if (recommended) {
         setSelectedAngle(recommended.id);
-        setFormat(recommended.recommended_format);
+        setFormat(!hasSourceExcerpt && recommended.recommended_format === "article" ? "short_post" : recommended.recommended_format);
       }
     } catch (reason) {
       showError(reason);
@@ -166,13 +167,18 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
       <section className={`studio-source-status ${article.analysis_depth === "deep" ? "is-deep" : ""}`}>
         <div>
           <p className="section-index">SOURCE QUALITY / WRITING INPUT</p>
-          {article.analysis_depth === "deep" && hasSourceExcerpt ? (
+          {deepAnalysisReady && hasSourceExcerpt ? (
             <>
               <h2>深度分析已接入写作</h2>
               <p>
                 新生成的角度会带上技术机制、新意和应用判断。
                 {project.angle_options.length ? "现有角度和草稿不会被覆盖；点“重新生成角度”后才会使用这些新资料。" : "现在可以直接生成写作角度。"}
               </p>
+            </>
+          ) : deepAnalysisReady ? (
+            <>
+              <h2>深度分析完成，但原始证据仍然较薄</h2>
+              <p>可以生成克制的短推文；分析中的推断只会作为观点线索，不会冒充原文事实。由于缺少可靠正文，长文暂时不可生成。</p>
             </>
           ) : hasSourceExcerpt ? (
             <>
@@ -181,12 +187,12 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             </>
           ) : (
             <>
-              <h2>当前是薄资料写作模式</h2>
-              <p>这条热点主要只有标题和热度数字。为了避免 AI 自我引用，深度分析不会被当成原始事实；短推文可以直接生成，长文建议先补充可靠来源。</p>
+              <h2>写作前需要先完成深度分析</h2>
+              <p>这条热点主要只有标题和热度数字。分析会先划清事实与推断，再决定能写到什么程度；证据仍不足时只开放克制的短内容。</p>
             </>
           )}
         </div>
-        {article.analysis_depth === "brief" && hasSourceExcerpt ? (
+        {!deepAnalysisReady ? (
           <DeepAnalysisButton articleId={article.id} variant="writing" />
         ) : null}
       </section>
@@ -197,8 +203,8 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             <p className="section-index">01 / EDITORIAL ANGLES</p>
             <h2>先决定写什么，不急着成稿</h2>
           </div>
-          <button className="secondary-button" disabled={operation !== null} onClick={generateAngles}>
-            {operation === "angles" ? "正在分析写作角度…" : project.angle_options.length ? "重新生成角度" : "生成写作角度"}
+          <button className="secondary-button" disabled={operation !== null || !deepAnalysisReady} onClick={generateAngles}>
+            {operation === "angles" ? "正在分析写作角度…" : !deepAnalysisReady ? "请先完成深度分析" : project.angle_options.length ? "重新生成角度" : "生成写作角度"}
           </button>
         </div>
 
@@ -242,13 +248,13 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             <legend>输出形式</legend>
             {FORMAT_OPTIONS.map((option) => (
               <label className={format === option.value ? "is-selected" : ""} key={option.value}>
-                <input type="radio" name="writing-format" value={option.value} checked={format === option.value} onChange={() => setFormat(option.value)} />
+                <input type="radio" name="writing-format" value={option.value} checked={format === option.value} disabled={!hasSourceExcerpt && option.value === "article"} onChange={() => setFormat(option.value)} />
                 <strong>{option.label}</strong>
-                <span>{option.note}</span>
+                <span>{!hasSourceExcerpt && option.value === "article" ? "原始资料不足，补充可靠来源后开放" : option.note}</span>
               </label>
             ))}
           </fieldset>
-          <button className="action-button studio-generate" disabled={!selectedAngle || operation !== null} onClick={generateDraft}>
+          <button className="action-button studio-generate" disabled={!selectedAngle || operation !== null || !deepAnalysisReady} onClick={generateDraft}>
             {operation === "draft" ? "正在按参考风格写作…" : project.draft_content ? "按当前选择重新生成" : "直接生成第一版"}
           </button>
         </section>

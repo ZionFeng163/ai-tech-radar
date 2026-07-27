@@ -38,9 +38,16 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
   const { id } = await params;
   const article = await loadArticle(id);
   const analysisSections = [
+    ["已核实事实", article.analysis.verified_facts],
+    ["它如何工作", article.analysis.technical_mechanism],
     ["核心创新", article.analysis.core_innovations],
     ["与既有工作的差异", article.analysis.differences_from_prior_work],
     ["应用场景", article.analysis.application_scenarios],
+    ["证据还缺什么", article.analysis.evidence_gaps],
+    ["什么可能推翻这个判断", article.analysis.counterarguments],
+    ["可能引出的二阶变化", article.analysis.second_order_implications],
+    ["接下来值得验证的问题", article.analysis.open_questions],
+    ["可写的中心判断", article.analysis.writing_angles],
     ["为什么值得关注", article.analysis.why_it_matters],
   ] as const;
 
@@ -165,7 +172,14 @@ export default async function ArticlePage({ params }: ArticleRouteProps) {
 function toTextItems(value: unknown): string[] {
   if (typeof value === "string" && value.trim()) return [value.trim()];
   if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()));
+    return value.flatMap((item) => {
+      if (typeof item === "string" && item.trim()) return [item.trim()];
+      if (item && typeof item === "object" && "claim" in item && typeof item.claim === "string") {
+        const quote = "evidence_quote" in item && typeof item.evidence_quote === "string" ? `（原文：${item.evidence_quote}）` : "";
+        return [`${item.claim}${quote}`];
+      }
+      return [];
+    });
   }
   return [];
 }

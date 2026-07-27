@@ -16,6 +16,16 @@
     "open_source_status": {"enum": ["open", "partial", "closed", "unknown"]},
     "credibility_score": {"type": "number", "minimum": 0, "maximum": 10},
     "importance_score": {"type": "number", "minimum": 0, "maximum": 10},
-    "why_it_matters": {"type": "string", "minLength": 10, "maxLength": 500}
+    "why_it_matters": {"type": "string", "minLength": 10, "maxLength": 500},
+    "verified_facts": {"type": "array", "maxItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["claim", "evidence_quote"], "properties": {"claim": {"type": "string", "minLength": 5, "maxLength": 500}, "evidence_quote": {"type": "string", "minLength": 12, "maxLength": 500}}}},
+    "technical_mechanism": {"type": "array", "maxItems": 6, "items": {"type": "string"}},
+    "evidence_gaps": {"type": "array", "maxItems": 6, "items": {"type": "string"}},
+    "counterarguments": {"type": "array", "maxItems": 5, "items": {"type": "string"}},
+    "second_order_implications": {"type": "array", "maxItems": 5, "items": {"type": "string"}},
+    "open_questions": {"type": "array", "maxItems": 6, "items": {"type": "string"}},
+    "writing_angles": {"type": "array", "maxItems": 4, "items": {"type": "string"}},
+    "technical_overview": {"type": "string", "maxLength": 500},
+    "novelty_summary": {"type": "string", "maxLength": 300},
+    "heat_reasons": {"type": "array", "maxItems": 4, "items": {"type": "string"}}
   }
 }

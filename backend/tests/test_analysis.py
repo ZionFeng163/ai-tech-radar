@@ -8,7 +8,12 @@ from pydantic import ValidationError
 
 from app.analysis.config import DEFAULT_ANALYSIS_CONFIG_PATH, AnalysisConfig
 from app.analysis.evaluation import evaluate, load_evaluation_samples
-from app.analysis.pipeline import AnalysisPipeline
+from app.analysis.pipeline import (
+    AnalysisPipeline,
+    _evidence_quote_found,
+    _normalize_evidence,
+    _validate_verified_facts,
+)
 from app.analysis.provider import (
     BailianChatProvider,
     LLMRequest,
@@ -23,6 +28,8 @@ from app.analysis.schema import (
     ArticleAnalysisV1,
     OpenSourceStatus,
     TechnicalCategory,
+    VerifiedFact,
+    has_editorial_depth,
     strict_json_schema,
 )
 
@@ -40,6 +47,16 @@ def _valid_output() -> ArticleAnalysisV1:
         credibility_score=8,
         importance_score=7.5,
         why_it_matters="它可能降低高质量模型进入生产环境的硬件门槛。",
+        verified_facts=[
+            VerifiedFact(
+                claim="项目提供开源运行时",
+                evidence_quote="Open-source runtime",
+            )
+        ],
+        technical_mechanism=["输入模型权重 → 执行量化 → 生成低精度运行时"],
+        evidence_gaps=["缺少更多硬件上的延迟数据"],
+        open_questions=["不同任务上的精度损失是多少？"],
+        writing_angles=["判断｜量化降低部署门槛｜依据：开源运行时｜限制：缺少延迟数据"],
     )
 
 
@@ -67,6 +84,10 @@ def test_versioned_schema_rejects_extra_and_invalid_fields() -> None:
     assert SCHEMA_VERSION == "1.0"
     assert schema["additionalProperties"] is False
     assert schema["properties"]["schema_version"]["const"] == "1.0"
+    assert "verified_facts" in schema["properties"]
+    assert "technical_mechanism" in schema["properties"]
+    assert "evidence_gaps" in schema["properties"]
+    assert "writing_angles" in schema["properties"]
 
     payload = _valid_output().model_dump(mode="json") | {"unexpected": True}
     try:
@@ -75,6 +96,49 @@ def test_versioned_schema_rejects_extra_and_invalid_fields() -> None:
         pass
     else:
         raise AssertionError("extra fields must be rejected")
+
+
+def test_verified_fact_quote_must_exist_in_source_material() -> None:
+    output = _valid_output().model_copy(
+        update={
+            "verified_facts": [
+                VerifiedFact(
+                    claim="声称存在并未提供的性能数字",
+                    evidence_quote="AREX-Base scored 99.9",
+                )
+            ]
+        }
+    )
+
+    try:
+        _validate_verified_facts(output, _request().article)
+    except ValueError as exc:
+        assert "evidence was not found" in str(exc)
+    else:
+        raise AssertionError("unquoted claims must fail grounding validation")
+
+
+def test_legacy_deep_label_does_not_satisfy_editorial_depth() -> None:
+    assert not has_editorial_depth({"depth": "deep", "core_innovations": ["旧栏目"]})
+    assert has_editorial_depth(
+        {
+            "depth": "deep",
+            "verified_facts": [{"claim": "事实", "evidence_quote": "source quote"}],
+            "technical_mechanism": ["机制"],
+            "evidence_gaps": ["缺口"],
+            "open_questions": ["问题"],
+            "writing_angles": ["角度"],
+        }
+    )
+
+
+def test_evidence_quote_allows_only_nearby_ordered_omissions() -> None:
+    corpus = _normalize_evidence(
+        "<tr><td>AREX-Base</td><td>122B</td><td>85.9</td></tr>" + "x" * 900 + "99.9"
+    )
+
+    assert _evidence_quote_found("AREX-Base ... 85.9", corpus)
+    assert not _evidence_quote_found("AREX-Base ... 99.9", corpus)
 
 
 def test_committed_schema_and_human_evaluation_set_are_versioned() -> None:
@@ -200,9 +264,11 @@ def test_pipeline_retries_invalid_output_and_retains_raw_attempt(monkeypatch) ->
         name = "flaky"
         model = "test-model"
         calls = 0
+        prompts: list[str] = []
 
         async def analyze(self, request: LLMRequest) -> LLMResponse:
             self.calls += 1
+            self.prompts.append(request.user_prompt)
             if self.calls == 1:
                 return LLMResponse(raw_response="raw-invalid", output_text='{"bad": true}')
             output = _valid_output().model_dump_json()
@@ -234,4 +300,5 @@ def test_pipeline_retries_invalid_output_and_retains_raw_attempt(monkeypatch) ->
     assert attempts == 2
     assert failed[0][0] == "raw-invalid"
     assert "validation failed" in failed[0][1]
+    assert "上一次输出未通过后端证据校验" in provider.prompts[1]
     assert completed and completed[0].startswith("raw-success:")

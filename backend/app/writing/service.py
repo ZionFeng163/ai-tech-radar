@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.analysis.provider import ProviderError
+from app.analysis.schema import has_editorial_depth
 from app.models import Article, RawItem, WritingProject
 from app.writing.config import WritingConfig
 from app.writing.provider import BailianWritingProvider, WritingProvider
@@ -72,6 +73,7 @@ class WritingService:
     async def generate_angles(self, session: Session, project_id: UUID) -> WritingProject:
         project = self.get(session, project_id)
         source_pack = self._source_pack(session, project.article_id)
+        self._require_deep_analysis(source_pack)
         project.status = "generating_angles"
         project.error_summary = None
         session.commit()
@@ -108,7 +110,10 @@ class WritingService:
         project = self.get(session, project_id)
         angle = self._select_angle(project, angle_id)
         source_pack = self._source_pack(session, project.article_id)
+        self._require_deep_analysis(source_pack)
         metadata_only = source_pack["source_quality"] == "metadata_only"
+        if metadata_only and output_format == "article":
+            raise ValueError("原始资料不足，暂不能生成长文；请先补充可靠来源")
         request_pack = {
             "target_format": output_format,
             "selected_angle": self._draft_angle(angle, metadata_only=metadata_only),
@@ -214,6 +219,8 @@ class WritingService:
             for raw in article.raw_items
         ]
         generated_context_allowed = source_quality != "metadata_only"
+        analysis_depth = "deep" if has_editorial_depth(article.analysis) else "brief"
+        deep_analysis = article.analysis if analysis_depth == "deep" else {}
         return {
             "title": article.title,
             "kind": article.kind.value,
@@ -223,7 +230,9 @@ class WritingService:
             ),
             "novelty_summary": article.novelty_summary if generated_context_allowed else None,
             "heat_reasons": article.heat_reasons if generated_context_allowed else [],
-            "analysis": article.analysis if generated_context_allowed else {},
+            "analysis": deep_analysis if generated_context_allowed else {},
+            "editorial_analysis": deep_analysis if not generated_context_allowed else {},
+            "analysis_depth": analysis_depth,
             "source_excerpt": content[: self.config.max_input_characters],
             "source_metrics": source_metrics,
             "source_quality": source_quality,
@@ -240,6 +249,11 @@ class WritingService:
                 )
             ),
         }
+
+    @staticmethod
+    def _require_deep_analysis(source_pack: Mapping[str, object]) -> None:
+        if source_pack.get("analysis_depth") != "deep":
+            raise ValueError("请先完成深度分析，再生成写作角度或正文")
 
     @staticmethod
     def _select_angle(project: WritingProject, angle_id: str) -> WritingAngle:

@@ -6,7 +6,7 @@ import httpx
 from app.writing.config import DEFAULT_WRITING_CONFIG_PATH, WritingConfig
 from app.writing.provider import BailianWritingProvider
 from app.writing.schema import WritingAngleSet
-from app.writing.service import _validate_draft_format
+from app.writing.service import WritingService, _validate_draft_format
 
 
 def test_writing_config_uses_separate_qwen_pipeline() -> None:
@@ -16,6 +16,17 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
     assert config.model == "qwen3.7-plus-2026-05-26"
     assert config.prompt_version == "writing-studio-v3"
     assert config.max_output_tokens > 2_000
+
+
+def test_writing_requires_completed_deep_analysis() -> None:
+    try:
+        WritingService._require_deep_analysis({"analysis_depth": "brief"})
+    except ValueError as exc:
+        assert "先完成深度分析" in str(exc)
+    else:
+        raise AssertionError("writing must be gated by deep analysis")
+
+    WritingService._require_deep_analysis({"analysis_depth": "deep"})
 
 
 def test_writing_provider_only_enables_json_mode_for_structured_stages(monkeypatch) -> None:

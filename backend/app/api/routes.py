@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.analysis import AnalysisConfig, AnalysisPipeline
 from app.analysis.provider import ProviderError
-from app.analysis.schema import OpenSourceStatus, TechnicalCategory
+from app.analysis.schema import OpenSourceStatus, TechnicalCategory, has_editorial_depth
 from app.api.cursor import PageCursor, decode_cursor, encode_cursor
 from app.api.dependencies import SessionDependency
 from app.api.queries import (
@@ -231,7 +231,9 @@ async def generate_writing_angles(
         project = await service.generate_angles(session, project_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (ProviderError, ValidationError, ValueError) as exc:
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (ProviderError, ValidationError) as exc:
         raise HTTPException(status_code=502, detail=f"角度生成失败：{exc}") from exc
     return _writing_project_response(project)
 
@@ -335,7 +337,7 @@ def _analysis_job_status(
     article_id: UUID,
     analysis: dict[str, object],
 ) -> AnalysisJobStatus:
-    if analysis.get("depth") == "deep":
+    if has_editorial_depth(analysis):
         return AnalysisJobStatus(
             article_id=article_id,
             status="complete",

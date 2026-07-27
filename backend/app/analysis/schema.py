@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -6,6 +7,20 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 SCHEMA_VERSION = "1.0"
 SCHEMA_NAME = "article_analysis_v1"
 BRIEF_SCHEMA_NAME = "article_brief_v1"
+EDITORIAL_DEPTH_FIELDS = (
+    "verified_facts",
+    "technical_mechanism",
+    "evidence_gaps",
+    "open_questions",
+    "writing_angles",
+)
+
+
+def has_editorial_depth(analysis: Mapping[str, object]) -> bool:
+    return analysis.get("depth") == "deep" and all(
+        isinstance(analysis.get(field), list) and bool(analysis[field])
+        for field in EDITORIAL_DEPTH_FIELDS
+    )
 
 
 class TechnicalCategory(StrEnum):
@@ -53,6 +68,13 @@ class ArticleAnalysisInput(BaseModel):
     source_context: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class VerifiedFact(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim: str = Field(min_length=5, max_length=500)
+    evidence_quote: str = Field(min_length=12, max_length=500)
+
+
 class ArticleAnalysisV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -67,21 +89,43 @@ class ArticleAnalysisV1(BaseModel):
     credibility_score: float = Field(ge=0, le=10)
     importance_score: float = Field(ge=0, le=10)
     why_it_matters: str = Field(min_length=10, max_length=500)
+    verified_facts: list[VerifiedFact] = Field(default_factory=list, max_length=8)
+    technical_mechanism: list[str] = Field(default_factory=list, max_length=6)
+    evidence_gaps: list[str] = Field(default_factory=list, max_length=6)
+    counterarguments: list[str] = Field(default_factory=list, max_length=5)
+    second_order_implications: list[str] = Field(default_factory=list, max_length=5)
+    open_questions: list[str] = Field(default_factory=list, max_length=6)
+    writing_angles: list[str] = Field(default_factory=list, max_length=4)
+    technical_overview: str = Field(default="", max_length=500)
+    novelty_summary: str = Field(default="", max_length=300)
+    heat_reasons: list[str] = Field(default_factory=list, max_length=4)
 
     @field_validator(
         "tags",
         "core_innovations",
         "differences_from_prior_work",
         "application_scenarios",
+        "technical_mechanism",
+        "evidence_gaps",
+        "counterarguments",
+        "second_order_implications",
+        "open_questions",
+        "writing_angles",
+        "heat_reasons",
     )
     @classmethod
     def normalize_string_lists(cls, values: list[str]) -> list[str]:
         normalized = list(dict.fromkeys(value.strip() for value in values if value.strip()))
-        if not normalized:
+        if not normalized and values:
             raise ValueError("at least one non-empty value is required")
         return normalized
 
-    @field_validator("summary_zh", "why_it_matters")
+    @field_validator(
+        "summary_zh",
+        "why_it_matters",
+        "technical_overview",
+        "novelty_summary",
+    )
     @classmethod
     def strip_text(cls, value: str) -> str:
         return value.strip()

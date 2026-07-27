@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import json
-from dataclasses import asdict, dataclass
+import re
+from dataclasses import asdict, dataclass, replace
 from typing import Literal
 from uuid import UUID
 
@@ -114,7 +116,9 @@ class AnalysisPipeline:
                         if self.depth == "brief"
                         else ArticleAnalysisV1.model_validate_json(response.output_text)
                     )
-                except ValidationError as exc:
+                    if isinstance(output, ArticleAnalysisV1):
+                        _validate_verified_facts(output, request.article)
+                except (ValidationError, ValueError) as exc:
                     self._fail_attempt(
                         run_id,
                         response.raw_response,
@@ -122,6 +126,18 @@ class AnalysisPipeline:
                     )
                     if attempt == self.config.max_attempts:
                         return False, attempt
+                    request = replace(
+                        request,
+                        user_prompt=(
+                            request.user_prompt
+                            + "\n\n上一次输出未通过后端证据校验："
+                            + str(exc)[:1_500]
+                            + "。请重新输出完整 JSON。verified_facts 的 evidence_quote "
+                            "必须复制原文，不得翻译或跨段拼接；只有省略同一局部段落或"
+                            "表格行中的格式标记时才可使用省略号；"
+                            "无法逐字引用的 claim 必须删除。"
+                        ),
+                    )
                 else:
                     self._complete_attempt(article_id, run_id, response.raw_response, output)
                     return True, attempt
@@ -273,8 +289,85 @@ class AnalysisPipeline:
                 article.novelty_summary = output.novelty_summary
                 article.heat_reasons = output.heat_reasons
                 article.heat_score = output.heat_score
+            else:
+                if output.technical_overview:
+                    article.technical_overview = output.technical_overview
+                if output.novelty_summary:
+                    article.novelty_summary = output.novelty_summary
+                if output.heat_reasons:
+                    article.heat_reasons = output.heat_reasons
             article.open_source_status = output.open_source_status.value
             article.analysis = parsed
             article.analysis_schema_version = output.schema_version
             article.analyzed_at = utc_now()
             session.commit()
+
+
+def _normalize_evidence(value: str) -> str:
+    without_markup = re.sub(r"<[^>]+>", " ", html.unescape(value))
+    without_markup = re.sub(r"[`*_#>|]", " ", without_markup)
+    return " ".join(without_markup.split()).casefold()
+
+
+def _evidence_quote_found(quote: str, corpus: str) -> bool:
+    normalized = _normalize_evidence(quote)
+    if normalized in corpus:
+        return True
+    segments = [
+        segment.strip()
+        for segment in re.split(r"(?:\.{3,}|…)", normalized)
+        if len(segment.strip()) >= 3
+    ]
+    if len(segments) < 2:
+        return False
+    cursor = 0
+    first_start: int | None = None
+    final_end = 0
+    for segment in segments:
+        position = corpus.find(segment, cursor)
+        if position < 0:
+            return False
+        if first_start is None:
+            first_start = position
+        final_end = position + len(segment)
+        cursor = final_end
+    return first_start is not None and final_end - first_start <= 800
+
+
+def _validate_verified_facts(
+    output: ArticleAnalysisV1, article: ArticleAnalysisInput
+) -> None:
+    if not output.verified_facts:
+        raise ValueError("deep analysis must include at least one verified fact")
+    evidence_corpus = _normalize_evidence(
+        "\n".join(
+            [
+                article.title,
+                article.content,
+                article.license or "",
+                json.dumps(article.source_context, ensure_ascii=False),
+            ]
+        )
+    )
+    missing = [
+        fact.evidence_quote
+        for fact in output.verified_facts
+        if not _evidence_quote_found(fact.evidence_quote, evidence_corpus)
+    ]
+    if missing:
+        raise ValueError(
+            "verified fact evidence was not found in source material: "
+            + "; ".join(missing[:3])
+        )
+    required_lists = {
+        "technical_mechanism": output.technical_mechanism,
+        "evidence_gaps": output.evidence_gaps,
+        "open_questions": output.open_questions,
+        "writing_angles": output.writing_angles,
+    }
+    empty = [name for name, values in required_lists.items() if not values]
+    if empty:
+        raise ValueError(
+            "deep analysis is missing required editorial depth fields: "
+            + ", ".join(empty)
+        )
