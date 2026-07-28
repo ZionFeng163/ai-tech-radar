@@ -18,7 +18,14 @@
 
 正文生成后会自动执行一次独立审校。公众可读性或技术清晰度低于 7 分，或者存在高严重度的事实、逻辑、术语问题时，草稿不会直接展示，而是携带具体审校意见自动重写。人工编辑后仍可使用“检查事实与 AI 腔”再次审校。
 
-`writing-style-reference-v1.txt` 将作者认可的内容归纳为项目工具、融资人物、产业观点、工程教程和公开行业观点五种参考写法。样例只影响选材、段落节奏与判断方式，不作为事实来源，也不允许移植其中的项目、人物和数字。
+写作规则已整理为项目内的 `config/skills/tech-social-writer/`，百炼 API 会按阶段加载，而不是只供 Codex 使用：
+
+- `SKILL.md`：证据边界、写作决策、格式预算和分阶段工作流。
+- `references/voice-profile.md`：从作者认可与否定的样例中提炼出的声音档案。
+- `references/fact-check.md`：只在草稿生成后的独立审校调用中加载。
+- `references/chinese-edit.md`：生成和审校阶段使用的中文最小修补规则，明确禁止新增事实或虚构第一人称经历。
+
+角度阶段只加载主 Skill 与声音档案；正文阶段再加入中文成稿规则；审校阶段才额外加载逐条事实核验。这样保持生成与核验分离，也避免每次调用携带所有参考资料。Skill 的事实核验方法参考了 MIT 许可的 [jwynia/agent-skills fact-check](https://github.com/jwynia/agent-skills/tree/main/skills/general/research/verification/fact-check)，声音建模参考其 `voice-analysis`；AI 文风检查参考 MIT 许可的 [avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing)，所有规则均针对本项目重新编写。
 
 系统会在写作资料包中显式加入 `writing_style_profile`，避免所有内容共用一种机械结构：
 

@@ -343,13 +343,13 @@ class WritingService:
         project.error_summary = None
 
     def _draft_system_prompt(self) -> str:
-        return self.config.load_prompt("draft") + "\n\n" + self.config.load_style_reference()
+        return self.config.load_prompt("draft") + "\n\n" + self.config.load_skill("draft")
 
     def _angle_system_prompt(self) -> str:
-        return self.config.load_prompt("angles") + "\n\n" + self.config.load_style_reference()
+        return self.config.load_prompt("angles") + "\n\n" + self.config.load_skill("angles")
 
     def _review_system_prompt(self) -> str:
-        return self.config.load_prompt("review") + "\n\n" + self.config.load_style_reference()
+        return self.config.load_prompt("review") + "\n\n" + self.config.load_skill("review")
 
     @staticmethod
     def _record_error(session: Session, project: WritingProject, exc: Exception) -> None:

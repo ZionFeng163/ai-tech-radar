@@ -20,7 +20,16 @@ class WritingConfig(BaseModel):
     idea_prompt_path: Path = Path("config/prompts/composer-idea-v1.txt")
     paper_prompt_path: Path = Path("config/prompts/composer-paper-v1.txt")
     github_prompt_path: Path = Path("config/prompts/composer-github-v1.txt")
-    style_reference_path: Path = Path("config/prompts/writing-style-reference-v1.txt")
+    skill_path: Path = Path("config/skills/tech-social-writer/SKILL.md")
+    voice_profile_path: Path = Path(
+        "config/skills/tech-social-writer/references/voice-profile.md"
+    )
+    fact_check_path: Path = Path(
+        "config/skills/tech-social-writer/references/fact-check.md"
+    )
+    chinese_edit_path: Path = Path(
+        "config/skills/tech-social-writer/references/chinese-edit.md"
+    )
     timeout_seconds: float = Field(default=120, ge=1, le=300)
     max_input_characters: int = Field(default=16_000, ge=1_000, le=100_000)
     max_output_tokens: int = Field(default=5_000, ge=500, le=16_000)
@@ -43,8 +52,21 @@ class WritingConfig(BaseModel):
             path = BACKEND_ROOT / path
         return path.read_text(encoding="utf-8").strip()
 
-    def load_style_reference(self) -> str:
-        path = self.style_reference_path
-        if not path.is_absolute():
-            path = BACKEND_ROOT / path
-        return path.read_text(encoding="utf-8").strip()
+    def load_skill(self, stage: str) -> str:
+        paths = [self.skill_path]
+        if stage in {"angles", "draft", "composer", "review"}:
+            paths.append(self.voice_profile_path)
+        if stage in {"draft", "composer", "review"}:
+            paths.append(self.chinese_edit_path)
+        if stage == "review":
+            paths.append(self.fact_check_path)
+        if stage not in {"angles", "draft", "composer", "review"}:
+            raise ValueError(f"unsupported writing skill stage: {stage}")
+
+        sections: list[str] = []
+        for configured_path in paths:
+            path = configured_path
+            if not path.is_absolute():
+                path = BACKEND_ROOT / path
+            sections.append(path.read_text(encoding="utf-8").strip())
+        return "\n\n".join(sections)

@@ -120,6 +120,10 @@ def test_paper_composer_reads_official_feed_and_appends_canonical_link() -> None
     assert result.source is not None
     assert result.source.title == "WebSwarm: Dynamic Multi-Agent Search"
     assert result.draft.endswith("📎 arXiv: https://arxiv.org/abs/2607.08662v1")
+    assert "Tech Social Writer" in provider.prompts[0][0]
+    assert "作者声音档案" in provider.prompts[0][0]
+    assert "中文成稿修补" in provider.prompts[0][0]
+    assert "独立事实核验" not in provider.prompts[0][0]
     assert "50.5" in provider.prompts[0][1]
 
 

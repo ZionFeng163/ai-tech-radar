@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tech Social Writer"
+  short_description: "基于证据和作者声音生成自然可信、可核验的中文技术短帖"
+  default_prompt: "Use $tech-social-writer to turn verified technical evidence into a concise Chinese post or thread."

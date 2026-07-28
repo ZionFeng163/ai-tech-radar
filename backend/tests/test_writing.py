@@ -22,8 +22,23 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-flash-2026-07-15"
-    assert config.prompt_version == "writing-studio-v7-technical-reading-notes"
+    assert config.prompt_version == "writing-studio-v8-tech-social-skill"
     assert config.max_output_tokens > 2_000
+
+
+def test_writing_skill_loads_references_by_stage() -> None:
+    config = WritingConfig.from_file(DEFAULT_WRITING_CONFIG_PATH)
+
+    angles = config.load_skill("angles")
+    draft = config.load_skill("draft")
+    review = config.load_skill("review")
+
+    assert "Tech Social Writer" in angles
+    assert "作者声音档案" in angles
+    assert "中文成稿修补" not in angles
+    assert "中文成稿修补" in draft
+    assert "独立事实核验" not in draft
+    assert "独立事实核验" in review
 
 
 def test_writing_style_routes_technical_documents_without_affecting_news() -> None:
