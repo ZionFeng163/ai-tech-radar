@@ -153,7 +153,7 @@ URL/标题规范化、身份索引、本地特征 embedding、可配置聚类阈
 
 ## AI 分类、中文摘要与评分
 
-对规范化后的文章使用阿里云百炼 `qwen3.7-flash-2026-07-15` 运行版本化结构分析：
+对规范化后的文章使用阿里云百炼 `qwen3.7-max-2026-05-20` 运行版本化结构分析：
 
 ```bash
 docker compose exec backend alembic upgrade head

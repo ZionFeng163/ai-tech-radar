@@ -16,12 +16,12 @@
 
 ## Provider 与配置
 
-默认生产配置使用阿里云百炼的 `qwen3.7-flash-2026-07-15`。百炼密钥只通过环境变量注入：
+默认生产配置使用阿里云百炼的 `qwen3.7-max-2026-05-20`。百炼密钥只通过环境变量注入：
 
 ```json
 {
   "provider": "bailian",
-  "model": "qwen3.7-flash-2026-07-15",
+  "model": "qwen3.7-max-2026-05-20",
   "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
   "api_key_env": "DASHSCOPE_API_KEY",
   "prompt_path": "config/prompts/article-analysis-v1.txt",
