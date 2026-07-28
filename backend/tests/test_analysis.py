@@ -136,23 +136,22 @@ def test_legacy_deep_label_does_not_satisfy_editorial_depth() -> None:
     )
 
 
-def test_evidence_quote_allows_only_nearby_ordered_omissions() -> None:
+def test_evidence_quote_rejects_omissions_even_when_segments_are_nearby() -> None:
     corpus = _normalize_evidence(
         "<tr><td>AREX-Base</td><td>122B</td><td>85.9</td></tr>" + "x" * 900 + "99.9"
     )
 
-    assert _evidence_quote_found("AREX-Base ... 85.9", corpus)
+    assert not _evidence_quote_found("AREX-Base ... 85.9", corpus)
     assert not _evidence_quote_found("AREX-Base ... 99.9", corpus)
 
 
-def test_evidence_quote_uses_nearby_duplicate_instead_of_first_distant_match() -> None:
-    corpus = _normalize_evidence(
-        "AREX-Base model family "
-        + "x" * 900
-        + "<tr><td>AREX-Base</td><td>122B</td><td>85.9</td></tr>"
-    )
+def test_evidence_quote_tolerates_extractor_whitespace_loss() -> None:
+    corpus = _normalize_evidence("KimiDeltaAttentionandAttentionResiduals")
 
-    assert _evidence_quote_found("AREX-Base ... 85.9", corpus)
+    assert _evidence_quote_found(
+        "Kimi Delta Attention and Attention Residuals",
+        corpus,
+    )
 
 
 def test_evidence_quote_ignores_json_field_wrappers() -> None:
