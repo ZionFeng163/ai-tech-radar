@@ -24,8 +24,11 @@ export default async function Home({
   const filters = await searchParams;
   const editionList = await getRadarEditions();
   const completedEditions = editionList.items.filter((edition) => edition.status === "complete");
+  const finishedEditions = editionList.items.filter((edition) => edition.status !== "running");
   const selectedEdition =
-    completedEditions.find((edition) => edition.id === filters.edition) ?? completedEditions[0];
+    finishedEditions.find((edition) => edition.id === filters.edition)
+    ?? completedEditions[0]
+    ?? finishedEditions[0];
   const [articlePage, topicList] = await Promise.all([
     getArticles({
       category: filters.category,
@@ -101,8 +104,19 @@ export default async function Home({
           </div>
         ) : (
           <div className="empty-state">
-            <strong>当前筛选下没有信号</strong>
-            <p>尝试放宽分类、来源或重要性条件。</p>
+            <strong>
+              {selectedEdition?.status === "failed"
+                ? "本期处理失败，没有发布内容"
+                : selectedEdition?.progress.visible_count === 0
+                  ? "本期没有内容通过质量筛选"
+                  : "当前筛选下没有信号"}
+            </strong>
+            <p>
+              {selectedEdition?.error_summary
+                ?? (selectedEdition?.progress.visible_count === 0
+                  ? `抓取 ${selectedEdition.article_count} 条，分析或质量筛选后可展示 0 条。`
+                  : "尝试放宽分类、来源或重要性条件。")}
+            </p>
           </div>
         )}
         <PaginationLink cursor={articlePage.page.next_cursor} href={pageHref} />

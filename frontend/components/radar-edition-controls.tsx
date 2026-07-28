@@ -28,7 +28,9 @@ export function RadarEditionControls({
     "idle" | "loading" | "ready" | "done" | "error"
   >("idle");
   const [cleanupReport, setCleanupReport] = useState<CleanupReport | null>(null);
-  const completed = editions.filter((edition) => edition.status === "complete");
+  const selectable = editions.filter((edition) => edition.status !== "running");
+  const selectedEdition =
+    activeEdition ?? editions.find((edition) => edition.id === selectedId) ?? null;
 
   function switchEdition(value: string) {
     if (!value) return;
@@ -50,7 +52,12 @@ export function RadarEditionControls({
           setState("idle");
           return;
         }
-        if (current.status === "failed") throw new Error("capture failed");
+        if (current.status === "failed") {
+          router.push(`/?edition=${encodeURIComponent(current.id)}`);
+          router.refresh();
+          setState("error");
+          return;
+        }
       }
       throw new Error("capture timed out");
   }, [router]);
@@ -123,10 +130,11 @@ export function RadarEditionControls({
       <label>
         <span>抓取日期</span>
         <select value={selectedId ?? ""} onChange={(event) => switchEdition(event.target.value)}>
-          {!completed.length ? <option value="">暂无抓取记录</option> : null}
-          {completed.map((edition) => (
+          {!selectable.length ? <option value="">暂无抓取记录</option> : null}
+          {selectable.map((edition) => (
             <option value={edition.id} key={edition.id}>
               {formatCapturedAt(edition.captured_at)}
+              {edition.status === "failed" ? " · 失败" : ""}
             </option>
           ))}
         </select>
@@ -146,7 +154,12 @@ export function RadarEditionControls({
           <progress max={100} value={progressPercent}>{progressPercent}%</progress>
         </div>
       ) : null}
-      {state === "error" ? <p>抓取失败，请查看服务日志后重试。</p> : null}
+      {state === "error" ? (
+        <p>{activeEdition?.error_summary ?? "抓取失败，请查看本期诊断后重试。"}</p>
+      ) : null}
+      {selectedEdition && selectedEdition.status !== "running" ? (
+        <EditionDiagnostics edition={selectedEdition} />
+      ) : null}
       <details className="cleanup-controls">
         <summary>数据清理</summary>
         <div className="cleanup-form">
@@ -191,6 +204,46 @@ export function RadarEditionControls({
       </details>
     </section>
   );
+}
+
+function EditionDiagnostics({ edition }: { edition: RadarEdition }) {
+  const failedSources = edition.source_results.filter(
+    (result) => result.status === "failed",
+  );
+  const visibleCount = edition.progress.visible_count;
+  const analyzedCount = edition.progress.analyzed_count;
+  const shouldShow =
+    edition.status === "failed"
+    || Boolean(edition.error_summary)
+    || visibleCount !== undefined;
+  if (!shouldShow) return null;
+
+  return (
+    <details className="edition-diagnostics" open={edition.status === "failed"}>
+      <summary>本期诊断</summary>
+      <div>
+        <span>抓取 {edition.article_count} 条</span>
+        {analyzedCount !== undefined ? <span>完成概览 {analyzedCount} 条</span> : null}
+        {visibleCount !== undefined ? <span>可展示 {visibleCount} 条</span> : null}
+      </div>
+      {edition.error_summary ? <p>{edition.error_summary}</p> : null}
+      {failedSources.length ? (
+        <ul>
+          {failedSources.map((result, index) => (
+            <li key={`${String(result.source ?? "source")}-${index}`}>
+              {String(result.source ?? "未知来源")}：{sourceError(result)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </details>
+  );
+}
+
+function sourceError(result: Record<string, unknown>): string {
+  const error = String(result.error ?? "请求失败");
+  if (error.includes("429")) return "请求频率受限";
+  return error.split("\n")[0].slice(0, 180);
 }
 
 function stageLabel(stage: RadarEdition["progress"]["stage"]): string {

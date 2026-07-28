@@ -343,6 +343,42 @@ def test_bailian_provider_uses_json_mode_without_thinking(monkeypatch) -> None:
     assert "bailian_test" in response.raw_response
 
 
+def test_bailian_provider_surfaces_quota_error_code(monkeypatch) -> None:
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                403,
+                json={
+                    "error": {
+                        "code": "AllocationQuota.FreeTierOnly",
+                        "message": "Free quota exhausted.",
+                    }
+                },
+            )
+        )
+    )
+    provider = BailianChatProvider(
+        AnalysisConfig(
+            provider="bailian",
+            model="qwen3.7-plus-2026-05-26",
+            api_key_env="DASHSCOPE_API_KEY",
+        ),
+        client=client,
+    )
+
+    try:
+        asyncio.run(provider.analyze(_request()))
+    except ProviderError as exc:
+        assert exc.retryable is False
+        assert "AllocationQuota.FreeTierOnly" in str(exc)
+        assert "Free quota exhausted" in str(exc)
+        assert exc.raw_response is not None
+    else:
+        raise AssertionError("quota exhaustion must raise ProviderError")
+    asyncio.run(client.aclose())
+
+
 def test_pipeline_retries_invalid_output_and_retains_raw_attempt(monkeypatch) -> None:
     class FlakyProvider:
         name = "flaky"

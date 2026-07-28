@@ -89,4 +89,51 @@ describe("Home", () => {
     expect(screen.queryByText(article.novelty_summary)).not.toBeInTheDocument();
     expect(screen.getByText("数据清理")).toBeInTheDocument();
   });
+
+  it("explains why a captured edition has no visible signals", async () => {
+    vi.mocked(getRadarEditions).mockResolvedValue({
+      items: [{
+        id: "edition-failed",
+        captured_at: "2026-07-28T02:01:00Z",
+        finished_at: "2026-07-28T02:05:00Z",
+        status: "failed",
+        article_count: 37,
+        source_results: [{
+          source: "arxiv",
+          status: "failed",
+          error: "HTTP 429",
+        }],
+        progress: {
+          stage: "failed",
+          completed: 0,
+          total: 37,
+          message: "百炼免费额度已耗尽",
+          collected_count: 37,
+          analyzed_count: 6,
+          visible_count: 0,
+          analysis_failed: 1,
+          analysis_skipped: 30,
+        },
+        error_summary: "百炼免费额度已耗尽，请调整账号设置后重试。",
+      }],
+    });
+    vi.mocked(getArticles).mockResolvedValue({
+      items: [],
+      page: { limit: 18, has_more: false, next_cursor: null, query_ms: 2.1 },
+    });
+    vi.mocked(getTopics).mockResolvedValue({ items: [], query_ms: 1.2 });
+
+    render(await Home({
+      searchParams: Promise.resolve({ edition: "edition-failed" }),
+    }));
+
+    expect(screen.getByText("本期处理失败，没有发布内容")).toBeInTheDocument();
+    expect(screen.getByText("抓取 37 条")).toBeInTheDocument();
+    expect(screen.getByText("完成概览 6 条")).toBeInTheDocument();
+    expect(screen.getByText("可展示 0 条")).toBeInTheDocument();
+    expect(screen.getByText("arxiv：请求频率受限")).toBeInTheDocument();
+    expect(getArticles).toHaveBeenCalledWith(
+      expect.objectContaining({ edition: "edition-failed" }),
+    );
+  });
 });

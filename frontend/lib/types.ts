@@ -117,6 +117,11 @@ export interface RadarEdition {
     total: number;
     message: string;
     current_source?: string | null;
+    collected_count?: number;
+    analyzed_count?: number;
+    visible_count?: number;
+    analysis_failed?: number;
+    analysis_skipped?: number;
   };
   error_summary: string | null;
 }

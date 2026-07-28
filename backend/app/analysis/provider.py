@@ -199,9 +199,14 @@ class BailianChatProvider:
 
         raw_response = response.text
         if response.is_error:
-            retryable = response.status_code == 429 or response.status_code >= 500
+            code, detail = _api_error(response)
+            retryable = (
+                response.status_code == 429
+                or response.status_code >= 500
+                or code.startswith("Throttling")
+            )
             raise ProviderError(
-                f"Bailian returned HTTP {response.status_code}",
+                _http_error_message("Bailian", response.status_code, code, detail),
                 raw_response=raw_response,
                 retryable=retryable,
             )
@@ -260,6 +265,30 @@ def _chat_completion_output_text(data: dict[str, Any]) -> str:
     if not isinstance(content, str) or not content:
         raise KeyError("content")
     return content
+
+
+def _api_error(response: httpx.Response) -> tuple[str, str]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return "", response.text.strip()[:500]
+    if not isinstance(payload, dict):
+        return "", response.text.strip()[:500]
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return "", response.text.strip()[:500]
+    code = error.get("code")
+    message = error.get("message")
+    return (
+        code.strip() if isinstance(code, str) else "",
+        message.strip()[:500] if isinstance(message, str) else "",
+    )
+
+
+def _http_error_message(label: str, status_code: int, code: str, detail: str) -> str:
+    context = ": ".join(value for value in (code, detail) if value)
+    suffix = f" ({context})" if context else ""
+    return f"{label} returned HTTP {status_code}{suffix}"
 
 
 class DeterministicAnalysisProvider:
