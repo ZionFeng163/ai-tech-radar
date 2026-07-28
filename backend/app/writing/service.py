@@ -144,6 +144,7 @@ class WritingService:
         prompt = self._safe_json_prompt("写作任务", request_pack)
         draft = ""
         automatic_review: WritingReview | None = None
+        review_warning: str | None = None
         try:
             for attempt in range(4):
                 response = await self.provider.complete(self._draft_system_prompt(), prompt)
@@ -156,18 +157,6 @@ class WritingService:
                         short_post_max=280 if metadata_only else 360,
                         short_post_paragraphs=3 if metadata_only else 5,
                     )
-                    review_response = await self.provider.complete(
-                        self._review_system_prompt(),
-                        self._safe_json_prompt(
-                            "自动审校任务",
-                            request_pack | {"draft": draft},
-                        ),
-                        json_schema=strict_schema(WritingReview),
-                    )
-                    automatic_review = WritingReview.model_validate_json(
-                        _strip_fence(review_response.output_text)
-                    )
-                    _validate_automatic_review(automatic_review)
                 except (ValidationError, ValueError) as exc:
                     if attempt == 3:
                         raise
@@ -181,6 +170,25 @@ class WritingService:
             self._record_error(session, project, exc)
             raise
 
+        try:
+            review_response = await self.provider.complete(
+                self._review_system_prompt(),
+                self._safe_json_prompt(
+                    "自动审校任务",
+                    request_pack | {"draft": draft},
+                ),
+                json_schema=strict_schema(WritingReview),
+            )
+            automatic_review = WritingReview.model_validate_json(
+                _strip_fence(review_response.output_text)
+            )
+            try:
+                _validate_automatic_review(automatic_review)
+            except ValueError as exc:
+                review_warning = str(exc)
+        except (ProviderError, ValidationError, ValueError) as exc:
+            review_warning = f"自动审校未完成：{exc}"
+
         project.selected_angle_id = angle_id
         project.output_format = output_format
         project.human_input = human_input.model_dump(mode="json")
@@ -190,6 +198,7 @@ class WritingService:
         )
         project.status = "draft_ready"
         self._record_model(project)
+        project.error_summary = review_warning
         session.commit()
         session.refresh(project)
         return project

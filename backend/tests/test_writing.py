@@ -1,11 +1,13 @@
 import asyncio
 import json
+from types import SimpleNamespace
+from uuid import uuid4
 
 import httpx
 
 from app.writing.config import DEFAULT_WRITING_CONFIG_PATH, WritingConfig
-from app.writing.provider import BailianWritingProvider
-from app.writing.schema import WritingAngle, WritingAngleSet, WritingReview
+from app.writing.provider import BailianWritingProvider, WritingResponse
+from app.writing.schema import HumanInput, WritingAngle, WritingAngleSet, WritingReview
 from app.writing.service import (
     WritingService,
     _validate_angle_set,
@@ -200,6 +202,101 @@ def test_automatic_review_blocks_low_public_accessibility() -> None:
         assert "公众可读性" in str(exc)
     else:
         raise AssertionError("drafts with low accessibility must be rewritten")
+
+
+def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
+    monkeypatch,
+) -> None:
+    draft = "\n\n".join(
+        [
+            "1/4 Kimi K3 这次值得看的，不只是参数变大。",
+            "2/4 它尝试用混合注意力降低长上下文的计算负担。",
+            "3/4 但项目方的模型对比，只能代表发布时的测试结果。",
+            "4/4 真正值得继续看的是，开放权重后这些能力能否被复现。",
+        ]
+    )
+    review = WritingReview(
+        verdict="草稿可读，但模型版本需要增加时间限定。",
+        thesis_clarity=8,
+        originality=7,
+        technical_clarity=8,
+        accessibility=8,
+        human_voice=8,
+        issues=[
+            {
+                "category": "fact",
+                "severity": "high",
+                "quote": "项目方的模型对比",
+                "problem": "模型排名只能代表发布时的评测。",
+                "suggestion": "明确写成项目方发布时的测试结果。",
+            }
+        ],
+        strongest_line="不只是参数变大。",
+        cut_suggestions=[],
+    )
+
+    class FakeProvider:
+        name = "fake"
+        model = "fake-model"
+
+        async def complete(
+            self,
+            system_prompt: str,
+            user_prompt: str,
+            *,
+            json_schema: dict[str, object] | None = None,
+        ) -> WritingResponse:
+            del system_prompt, user_prompt
+            output = review.model_dump_json() if json_schema else draft
+            return WritingResponse(output_text=output, raw_response=output)
+
+    class FakeSession:
+        def commit(self) -> None:
+            pass
+
+        def refresh(self, project: object) -> None:
+            del project
+
+    project = SimpleNamespace(
+        article_id=uuid4(),
+        angle_options=[_angle().model_dump(mode="json")],
+        selected_angle_id=None,
+        output_format="short_post",
+        human_input={},
+        draft_content=None,
+        review={},
+        status="angles_ready",
+        provider=None,
+        model=None,
+        prompt_version=None,
+        error_summary=None,
+    )
+    service = WritingService(WritingConfig(), provider=FakeProvider())
+    monkeypatch.setattr(service, "get", lambda session, project_id: project)
+    monkeypatch.setattr(
+        service,
+        "_source_pack",
+        lambda session, article_id: {
+            "analysis_depth": "deep",
+            "source_quality": "source_excerpt",
+        },
+    )
+
+    result = asyncio.run(
+        service.generate_draft(
+            FakeSession(),  # type: ignore[arg-type]
+            uuid4(),
+            angle_id="technical",
+            output_format="thread",
+            human_input=HumanInput(),
+        )
+    )
+
+    assert result.draft_content == draft
+    assert result.output_format == "thread"
+    assert result.status == "draft_ready"
+    assert result.review["issues"][0]["severity"] == "high"
+    assert "自动审校发现阻断问题" in result.error_summary
 
 
 def test_angle_schema_allows_one_grounded_angle_for_thin_sources() -> None:

@@ -276,6 +276,12 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             <button className="secondary-button" disabled={operation !== null} onClick={copyDraft}>{copied ? "已复制" : "复制正文"}</button>
             <button className="action-button" disabled={operation !== null || !draft.trim()} onClick={reviewDraft}>{operation === "review" ? "严格审校中…" : "检查事实与 AI 腔"}</button>
           </div>
+          {project.error_summary ? (
+            <div className="studio-warning" role="status">
+              <strong>草稿已保留，审校建议修改</strong>
+              <p>{project.error_summary}</p>
+            </div>
+          ) : null}
         </section>
       ) : null}
 

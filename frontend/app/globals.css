@@ -219,6 +219,9 @@ button, input, select { font: inherit; }
 .draft-count { color: var(--muted); font: 750 .72rem/1 ui-monospace, monospace; }
 .draft-editor { width: 100%; min-height: 560px; margin-top: 28px; resize: vertical; border: 1px solid var(--ink); border-radius: 0; padding: clamp(20px, 4vw, 42px); background: var(--white); color: var(--ink); font: 500 1.04rem/1.9 ui-sans-serif, system-ui, sans-serif; }
 .studio-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.studio-warning { margin-top: 18px; padding: 18px 20px; border: 1px solid #9a6400; background: #fff1bd; color: #654100; }
+.studio-warning strong { display: block; margin-bottom: 6px; }
+.studio-warning p { margin: 0; font-size: .84rem; line-height: 1.65; }
 .studio-review { background: var(--white); padding-inline: clamp(20px, 4vw, 48px); }
 .review-verdict { max-width: 800px; font-size: 1.1rem; line-height: 1.75; }
 .review-scores { display: grid; grid-template-columns: repeat(4, 1fr); margin: 34px 0; border: 1px solid var(--ink); }
