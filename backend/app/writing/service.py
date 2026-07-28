@@ -263,9 +263,20 @@ class WritingService:
         generated_context_allowed = source_quality != "metadata_only"
         analysis_depth = "deep" if has_editorial_depth(article.analysis) else "brief"
         deep_analysis = article.analysis if analysis_depth == "deep" else {}
+        source_urls = list(
+            dict.fromkeys(
+                ([article.canonical_url] if article.canonical_url else [])
+                + [raw.url for raw in article.raw_items]
+            )
+        )
         return {
             "title": article.title,
             "kind": article.kind.value,
+            "writing_style_profile": _writing_style_profile(
+                article.kind.value,
+                source_quality=source_quality,
+                source_urls=source_urls,
+            ),
             "summary": article.summary if generated_context_allowed else None,
             "technical_overview": (
                 article.technical_overview if generated_context_allowed else None
@@ -291,12 +302,7 @@ class WritingService:
                 "资料出现某个 GPT、Claude、Opus、Gemini 等版本，不代表它仍是当前最新、"
                 "最强或前沿版本；除非另有当日可靠资料，不得作这种时效性判断。"
             ),
-            "source_urls": list(
-                dict.fromkeys(
-                    ([article.canonical_url] if article.canonical_url else [])
-                    + [raw.url for raw in article.raw_items]
-                )
-            ),
+            "source_urls": source_urls,
         }
 
     @staticmethod
@@ -369,6 +375,28 @@ def _strip_fence(value: str) -> str:
         if text.endswith("```"):
             text = text[:-3]
     return text.strip()
+
+
+def _writing_style_profile(
+    kind: str,
+    *,
+    source_quality: str,
+    source_urls: list[str],
+) -> str:
+    """Choose a writing structure without pretending every item is a report."""
+
+    technical_kinds = {"paper", "model", "dataset", "code_repository", "release"}
+    has_technical_document = any(
+        url.casefold().endswith(".pdf")
+        or "/papers/" in url.casefold()
+        or "huggingface.co/papers/" in url.casefold()
+        for url in source_urls
+    )
+    if kind not in technical_kinds and not has_technical_document:
+        return "editorial_commentary"
+    if source_quality == "source_excerpt":
+        return "technical_reading_notes"
+    return "technical_findings"
 
 
 def _validate_angle_set(

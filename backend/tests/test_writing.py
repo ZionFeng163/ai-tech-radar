@@ -13,6 +13,7 @@ from app.writing.service import (
     _validate_angle_set,
     _validate_automatic_review,
     _validate_draft_format,
+    _writing_style_profile,
 )
 
 
@@ -21,8 +22,39 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-flash-2026-07-15"
-    assert config.prompt_version == "writing-studio-v6-thread-density"
+    assert config.prompt_version == "writing-studio-v7-technical-reading-notes"
     assert config.max_output_tokens > 2_000
+
+
+def test_writing_style_routes_technical_documents_without_affecting_news() -> None:
+    assert (
+        _writing_style_profile(
+            "paper",
+            source_quality="source_excerpt",
+            source_urls=["https://huggingface.co/papers/2607.24653"],
+        )
+        == "technical_reading_notes"
+    )
+    assert (
+        _writing_style_profile(
+            "news",
+            source_quality="metadata_only",
+            source_urls=[
+                "https://github.com/example/report/blob/main/technical-report.pdf"
+            ],
+        )
+        == "technical_findings"
+    )
+    assert (
+        _writing_style_profile(
+            "news",
+            source_quality="source_excerpt",
+            source_urls=[
+                "https://www.anthropic.com/news/our-position-on-open-weights-models"
+            ],
+        )
+        == "editorial_commentary"
+    )
 
 
 def test_writing_requires_completed_deep_analysis() -> None:

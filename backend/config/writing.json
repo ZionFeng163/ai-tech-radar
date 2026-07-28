@@ -3,7 +3,7 @@
   "model": "qwen3.7-flash-2026-07-15",
   "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
   "api_key_env": "DASHSCOPE_API_KEY",
-  "prompt_version": "writing-studio-v6-thread-density",
+  "prompt_version": "writing-studio-v7-technical-reading-notes",
   "angle_prompt_path": "config/prompts/writing-angles-v1.txt",
   "draft_prompt_path": "config/prompts/writing-draft-v1.txt",
   "review_prompt_path": "config/prompts/writing-review-v1.txt",
