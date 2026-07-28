@@ -106,13 +106,13 @@ class _VisibleTextParser(HTMLParser):
     def handle_starttag(
         self, tag: str, _attrs: list[tuple[str, str | None]]
     ) -> None:
-        if tag in {"script", "style", "noscript", "svg"}:
+        if tag in {"script", "style", "noscript", "svg", "sup"}:
             self._ignored_depth += 1
         elif tag in {"p", "br", "li", "h1", "h2", "h3", "article", "section"}:
             self.parts.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in {"script", "style", "noscript", "svg"} and self._ignored_depth:
+        if tag in {"script", "style", "noscript", "svg", "sup"} and self._ignored_depth:
             self._ignored_depth -= 1
         elif tag in {"p", "li", "article", "section"}:
             self.parts.append("\n")

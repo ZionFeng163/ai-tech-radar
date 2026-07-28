@@ -6,6 +6,7 @@ from app.research.models import EvidenceCandidate, EvidenceDocument
 from app.research.passages import MAX_PASSAGE_CHARACTERS, build_evidence_passages
 from app.research.resolvers import (
     EvidenceResolutionError,
+    HtmlExtractor,
     _representative_page_indexes,
     canonical_document_url,
 )
@@ -42,6 +43,17 @@ def test_github_blob_is_a_url_transformer_not_a_special_workflow() -> None:
 
 def test_pdf_sampling_keeps_opening_results_and_conclusion_pages() -> None:
     assert _representative_page_indexes(20) == [0, 1, 2, 3, 6, 13, 18, 19]
+
+
+def test_html_extractor_drops_inline_footnote_superscripts() -> None:
+    html = (
+        b"<p>We should stop rampant <a href='/source'>smuggling</a>"
+        b"<sup class='footnote'>3</sup> and workarounds.</p>"
+    )
+
+    text = HtmlExtractor().extract(html, max_characters=1_000)
+
+    assert text == "We should stop rampant smuggling and workarounds."
 
 
 def test_evidence_passages_are_bounded_stable_and_source_aware() -> None:

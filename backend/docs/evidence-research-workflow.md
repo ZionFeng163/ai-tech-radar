@@ -21,6 +21,8 @@ Article
 - `EvidenceCandidate` 描述候选地址、来源和优先级。
 - `EvidenceResolver` 是获取工具协议；工作流不依赖某个站点。
 - `ContentExtractor` 按媒体类型注册，当前支持 PDF、HTML、JSON 和纯文本。
+- HTML 可见文本解析会移除脚注上标，避免 `word<sup>3</sup>` 被错误拼成 `word3`，
+  同时保留正文链接的可见文字。
 - URL 变换属于解析层。例如 GitHub `blob` 链接转换为原始文件地址，不会污染分析流程。
 - HTTP 获取只允许公网 HTTPS；每次重定向都会重新执行地址校验，防止跳入内网。
 - 单文档限制 30 MB，每篇最多尝试 3 个外部文档，并与模型输入共享字符预算。
