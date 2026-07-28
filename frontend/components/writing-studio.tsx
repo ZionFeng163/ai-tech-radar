@@ -18,7 +18,7 @@ const EMPTY_INPUT: HumanInput = {
 
 const FORMAT_OPTIONS: Array<{ value: WritingFormat; label: string; note: string }> = [
   { value: "short_post", label: "短观点推文", note: "约 180–300 字，只讲一个认识" },
-  { value: "thread", label: "短 Thread", note: "4–6 条，每条可独立阅读" },
+  { value: "thread", label: "短 Thread", note: "3–4 条，每条都有事实或判断" },
   { value: "article", label: "X 长文", note: "约 1200–2500 个汉字" },
 ];
 

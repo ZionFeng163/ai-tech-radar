@@ -21,7 +21,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-flash-2026-07-15"
-    assert config.prompt_version == "writing-studio-v5-readable-freshness"
+    assert config.prompt_version == "writing-studio-v6-thread-density"
     assert config.max_output_tokens > 2_000
 
 
@@ -60,10 +60,20 @@ def test_writing_provider_only_enables_json_mode_for_structured_stages(monkeypat
 
 
 def test_thread_format_rejects_oversized_or_wrong_post_count() -> None:
-    valid = "\n\n".join(f"{index}/4 " + "观点" * 20 for index in range(1, 5))
+    valid = "\n\n".join(
+        f"{index}/4 " + f"第{index}条提供不同的事实、机制解释或限制。" * 7
+        for index in range(1, 5)
+    )
     _validate_draft_format(valid, "thread")
 
-    too_long = "\n\n".join(["1/4 " + "长" * 281, "2/4 ok", "3/4 ok", "4/4 ok"])
+    too_long = "\n\n".join(
+        [
+            "1/4 " + "长" * 281,
+            "2/4 " + "有效信息" * 30,
+            "3/4 " + "不同解释" * 30,
+            "4/4 " + "实际限制" * 30,
+        ]
+    )
     try:
         _validate_draft_format(too_long, "thread")
     except ValueError as exc:
@@ -72,11 +82,24 @@ def test_thread_format_rejects_oversized_or_wrong_post_count() -> None:
         raise AssertionError("oversized posts must be rejected")
 
     try:
-        _validate_draft_format("1/2 one\n\n2/2 two", "thread")
+        _validate_draft_format("1/2 " + "内容" * 60 + "\n\n2/2 " + "内容" * 60, "thread")
     except ValueError as exc:
-        assert "4–6" in str(exc)
+        assert "3–4" in str(exc)
     else:
         raise AssertionError("short threads must be rejected")
+
+
+def test_thread_rejects_mechanical_short_fragments() -> None:
+    fragments = "\n\n".join(
+        f"{index}/4 " + "只有一句很短的话。" * 3 for index in range(1, 5)
+    )
+
+    try:
+        _validate_draft_format(fragments, "thread")
+    except ValueError as exc:
+        assert "少于 90" in str(exc) or "至少 420" in str(exc)
+    else:
+        raise AssertionError("a thread must contain more substance than a split short post")
 
 
 def test_reference_style_post_allows_the_requested_medium_length() -> None:
@@ -209,10 +232,30 @@ def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
 ) -> None:
     draft = "\n\n".join(
         [
-            "1/4 Kimi K3 这次值得看的，不只是参数变大。",
-            "2/4 它尝试用混合注意力降低长上下文的计算负担。",
-            "3/4 但项目方的模型对比，只能代表发布时的测试结果。",
-            "4/4 真正值得继续看的是，开放权重后这些能力能否被复现。",
+            (
+                "1/4 Kimi K3 这次值得看的不只是参数变大。它用混合专家架构"
+                "只激活部分参数，尝试在扩大模型容量的同时控制每次推理真正参与计算"
+                "的规模。这项取舍直接影响部署时需要承担的计算量，也决定大模型能否"
+                "被更多团队实际使用。"
+            ),
+            (
+                "2/4 它还把两类注意力组合起来处理长上下文：大部分层优先考虑"
+                "计算效率，少量全局注意力负责保留远距离信息。价值在于机制组合，"
+                "而不是单个新名词。真正需要比较的是，同样长度下它是否更快、更稳，"
+                "以及会损失多少信息。"
+            ),
+            (
+                "3/4 项目方给出的模型对比只能代表发布时的测试结果，不能直接变成"
+                "今天的市场排名。真正需要继续验证的是，百万上下文在真实任务中的"
+                "稳定性和成本。基准成绩可以说明方向，但不能代替长时间运行时的"
+                "失败率、延迟和显存数据。"
+            ),
+            (
+                "4/4 完整权重开放后，外部团队终于可以检查训练结论能否复现。"
+                "对开发者来说，这比一句“追上闭源”更有价值：能力、部署代价和失败"
+                "场景都能被实际检验。如果第三方复现与报告一致，这套架构才可能成为"
+                "后续项目可以采用的工程基线。"
+            ),
         ]
     )
     review = WritingReview(

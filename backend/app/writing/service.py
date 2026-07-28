@@ -530,11 +530,36 @@ def _validate_draft_format(
     if output_format != "thread":
         return
     posts = [block.strip() for block in content.split("\n\n") if block.strip()]
-    if not 4 <= len(posts) <= 6:
-        raise ValueError(f"Thread 应有 4–6 条，实际识别到 {len(posts)} 条")
+    if not 3 <= len(posts) <= 4:
+        raise ValueError(f"Thread 应有 3–4 条，实际识别到 {len(posts)} 条")
     oversized = [index + 1 for index, post in enumerate(posts) if len(post) > 280]
     if oversized:
         raise ValueError(f"Thread 第 {', '.join(map(str, oversized))} 条超过 280 个字符")
+    undersized = [index + 1 for index, post in enumerate(posts) if len(post) < 90]
+    if undersized:
+        raise ValueError(
+            f"Thread 第 {', '.join(map(str, undersized))} 条少于 90 个字符，"
+            "不能只把短推文机械切段"
+        )
+    if len(content) < 420:
+        raise ValueError(
+            f"Thread 总共只有 {len(content)} 个字符，应至少 420 个字符，"
+            "并明显比短观点推文多提供一层解释"
+        )
+    if len(content) > 850:
+        raise ValueError(
+            f"短 Thread 总共有 {len(content)} 个字符，超过 850 个字符"
+        )
+    numbering = [
+        index
+        for index, post in enumerate(posts, start=1)
+        if not post.startswith(f"{index}/{len(posts)}")
+    ]
+    if numbering:
+        raise ValueError(
+            "Thread 编号应与实际条数一致，错误条目："
+            + ", ".join(map(str, numbering))
+        )
 
 
 def _validate_automatic_review(review: WritingReview) -> None:
