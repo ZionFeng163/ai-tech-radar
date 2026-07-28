@@ -223,6 +223,14 @@ button, input, select { font: inherit; }
 .studio-warning strong { display: block; margin-bottom: 6px; }
 .studio-warning p { margin: 0; font-size: .84rem; line-height: 1.65; }
 .studio-review { background: var(--white); padding-inline: clamp(20px, 4vw, 48px); }
+.verification-summary { margin-top: 22px; padding: 18px 20px; border: 1px solid #78a889; background: #f2f8f3; }
+.verification-summary strong { display: block; margin-bottom: 6px; }
+.verification-summary p { margin: 0 0 8px; line-height: 1.6; }
+.verification-summary span { color: var(--muted); font-size: .8rem; }
+.verification-summary details { margin-top: 12px; }
+.verification-summary li { margin: 6px 0; line-height: 1.5; }
+.original-draft { margin-top: 16px; padding: 14px 18px; border: 1px solid var(--line); color: var(--muted); }
+.original-draft pre { margin: 14px 0 0; white-space: pre-wrap; font: inherit; line-height: 1.7; }
 .review-verdict { max-width: 800px; font-size: 1.1rem; line-height: 1.75; }
 .review-scores { display: grid; grid-template-columns: repeat(4, 1fr); margin: 34px 0; border: 1px solid var(--ink); }
 .review-scores div { display: grid; gap: 16px; padding: 18px; border-right: 1px solid var(--ink); }

@@ -17,6 +17,9 @@ class WritingConfig(BaseModel):
     angle_prompt_path: Path = Path("config/prompts/writing-angles-v1.txt")
     draft_prompt_path: Path = Path("config/prompts/writing-draft-v1.txt")
     review_prompt_path: Path = Path("config/prompts/writing-review-v1.txt")
+    verification_prompt_path: Path = Path(
+        "config/prompts/writing-verification-v1.txt"
+    )
     idea_prompt_path: Path = Path("config/prompts/composer-idea-v1.txt")
     paper_prompt_path: Path = Path("config/prompts/composer-paper-v1.txt")
     github_prompt_path: Path = Path("config/prompts/composer-github-v1.txt")
@@ -43,6 +46,7 @@ class WritingConfig(BaseModel):
             "angles": self.angle_prompt_path,
             "draft": self.draft_prompt_path,
             "review": self.review_prompt_path,
+            "verification": self.verification_prompt_path,
             "idea": self.idea_prompt_path,
             "paper": self.paper_prompt_path,
             "github": self.github_prompt_path,
@@ -54,13 +58,13 @@ class WritingConfig(BaseModel):
 
     def load_skill(self, stage: str) -> str:
         paths = [self.skill_path]
-        if stage in {"angles", "draft", "composer", "review"}:
+        if stage in {"angles", "draft", "composer", "review", "verification"}:
             paths.append(self.voice_profile_path)
-        if stage in {"draft", "composer", "review"}:
+        if stage in {"draft", "composer", "review", "verification"}:
             paths.append(self.chinese_edit_path)
-        if stage == "review":
+        if stage in {"review", "verification"}:
             paths.append(self.fact_check_path)
-        if stage not in {"angles", "draft", "composer", "review"}:
+        if stage not in {"angles", "draft", "composer", "review", "verification"}:
             raise ValueError(f"unsupported writing skill stage: {stage}")
 
         sections: list[str] = []

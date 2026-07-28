@@ -7,11 +7,19 @@ import httpx
 
 from app.writing.config import DEFAULT_WRITING_CONFIG_PATH, WritingConfig
 from app.writing.provider import BailianWritingProvider, WritingResponse
-from app.writing.schema import HumanInput, WritingAngle, WritingAngleSet, WritingReview
+from app.writing.schema import (
+    ClaimAudit,
+    HumanInput,
+    VerifiedWriting,
+    WritingAngle,
+    WritingAngleSet,
+    WritingReview,
+)
 from app.writing.service import (
     WritingService,
     _validate_angle_set,
     _validate_automatic_review,
+    _validate_claim_audit,
     _validate_draft_format,
     _writing_style_profile,
 )
@@ -22,7 +30,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-flash-2026-07-15"
-    assert config.prompt_version == "writing-studio-v8-tech-social-skill"
+    assert config.prompt_version == "writing-studio-v9-verified-claims"
     assert config.max_output_tokens > 2_000
 
 
@@ -32,6 +40,7 @@ def test_writing_skill_loads_references_by_stage() -> None:
     angles = config.load_skill("angles")
     draft = config.load_skill("draft")
     review = config.load_skill("review")
+    verification = config.load_skill("verification")
 
     assert "Tech Social Writer" in angles
     assert "作者声音档案" in angles
@@ -39,6 +48,7 @@ def test_writing_skill_loads_references_by_stage() -> None:
     assert "中文成稿修补" in draft
     assert "独立事实核验" not in draft
     assert "独立事实核验" in review
+    assert "独立事实核验" in verification
 
 
 def test_writing_style_routes_technical_documents_without_affecting_news() -> None:
@@ -232,7 +242,10 @@ def test_reference_style_rejects_abstract_ai_diagnosis() -> None:
 def test_short_post_rejects_excessive_jargon_density() -> None:
     try:
         _validate_draft_format(
-            "AREX 基于 Qwen MoE，通过 NIM 和 NVFP4 运行，并在 QCalEval 上测试。",
+            (
+                "AREX 基于 Qwen MoE，通过 NIM、NVFP4、DSP 和 API 运行，"
+                "并在 QCalEval 上测试。"
+            ),
             "short_post",
         )
     except ValueError as exc:
@@ -274,7 +287,7 @@ def test_automatic_review_blocks_low_public_accessibility() -> None:
         raise AssertionError("drafts with low accessibility must be rewritten")
 
 
-def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
+def test_unsafe_verification_preserves_draft_without_exposing_final_content(
     monkeypatch,
 ) -> None:
     draft = "\n\n".join(
@@ -306,25 +319,36 @@ def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
         ]
     )
     review = WritingReview(
-        verdict="草稿可读，但模型版本需要增加时间限定。",
+        verdict="已删除无法核实的版本判断，正文可以继续编辑。",
         thesis_clarity=8,
         originality=7,
         technical_clarity=8,
         accessibility=8,
         human_voice=8,
-        issues=[
-            {
-                "category": "fact",
-                "severity": "high",
-                "quote": "项目方的模型对比",
-                "problem": "模型排名只能代表发布时的评测。",
-                "suggestion": "明确写成项目方发布时的测试结果。",
-            }
-        ],
+        issues=[],
         strongest_line="不只是参数变大。",
         cut_suggestions=[],
     )
-
+    verified = VerifiedWriting(
+        final_content=draft,
+        changes=["限定评测发生在项目发布时。"],
+    )
+    audit = ClaimAudit(
+        publishable=False,
+        summary="仍有一句性能结论没有原文证据。",
+        claims=[
+            {
+                "claim": "这项取舍直接影响部署时需要承担的计算量",
+                "kind": "causal",
+                "support_status": "unsupported",
+                "risk": "high",
+                "evidence_quote": "",
+                "evidence_location": "",
+                "reason": "资料没有给出部署计算量对照。",
+            }
+        ],
+        review=review,
+    )
     class FakeProvider:
         name = "fake"
         model = "fake-model"
@@ -337,7 +361,12 @@ def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
             json_schema: dict[str, object] | None = None,
         ) -> WritingResponse:
             del system_prompt, user_prompt
-            output = review.model_dump_json() if json_schema else draft
+            if json_schema is None:
+                output = draft
+            elif json_schema.get("title") == "VerifiedWriting":
+                output = verified.model_dump_json()
+            else:
+                output = audit.model_dump_json()
             return WritingResponse(output_text=output, raw_response=output)
 
     class FakeSession:
@@ -355,6 +384,9 @@ def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
         human_input={},
         draft_content=None,
         review={},
+        claim_ledger=[],
+        verification={},
+        final_content=None,
         status="angles_ready",
         provider=None,
         model=None,
@@ -369,6 +401,7 @@ def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
         lambda session, article_id: {
             "analysis_depth": "deep",
             "source_quality": "source_excerpt",
+            "source_excerpt": "Kimi K3 technical report.",
         },
     )
 
@@ -384,9 +417,274 @@ def test_thread_is_preserved_when_automatic_review_has_blocking_warning(
 
     assert result.draft_content == draft
     assert result.output_format == "thread"
-    assert result.status == "draft_ready"
-    assert result.review["issues"][0]["severity"] == "high"
-    assert "自动审校发现阻断问题" in result.error_summary
+    assert result.status == "verification_failed"
+    assert result.final_content is None
+    assert result.claim_ledger == []
+    assert "未获证据支持" in result.error_summary
+
+
+def test_claim_audit_requires_exact_evidence_and_covers_numbers() -> None:
+    content = "项目方在 BrowseComp 测试中报告，准确率从 45.9 提升到 54.8。"
+    source_pack = {
+        "source_excerpt": (
+            "On BrowseComp, accuracy improved from 45.9 to 54.8."
+        )
+    }
+    audit = ClaimAudit(
+        publishable=True,
+        summary="数字、对象和方向均可追溯。",
+        claims=[
+            {
+                "claim": "在 BrowseComp 测试中报告，准确率从 45.9 提升到 54.8",
+                "kind": "metric",
+                "support_status": "supported",
+                "risk": "high",
+                "evidence_quote": (
+                    "On BrowseComp, accuracy improved from 45.9 to 54.8."
+                ),
+                "evidence_location": "E1",
+                "reason": "原文直接给出测试名、指标和前后数值。",
+            }
+        ],
+        review=_publishable_review(),
+    )
+
+    _validate_claim_audit(audit, source_pack, content)
+
+
+def test_successful_verification_stores_bounded_publishable_content(
+    monkeypatch,
+) -> None:
+    draft = (
+        "StateAct 在这组长程任务里只让主智能体在 1.1% 的步骤调用视觉模块。"
+        "\n\n其余步骤直接读取文件和网页结构，减少反复看截图的成本。"
+    )
+    final = (
+        "StateAct 在论文这组长程任务里，只让主智能体在 1.1% 的步骤调用视觉模块。"
+        "\n\n其余步骤直接读取文件和网页结构。这个结果只说明论文测试里的调用方式，"
+        "不能直接推成所有自动化任务都更便宜。"
+    )
+    review = WritingReview(
+        verdict="范围已经限定，技术事实与作者判断能够区分。",
+        thesis_clarity=9,
+        originality=8,
+        technical_clarity=9,
+        accessibility=9,
+        human_voice=8,
+        issues=[],
+        strongest_line="不能直接推成所有自动化任务都更便宜。",
+        cut_suggestions=[],
+    )
+    verified = VerifiedWriting(
+        final_content=final,
+        changes=["把结果限定为论文测试，删除普遍降本结论。"],
+    )
+    audit = ClaimAudit(
+        publishable=True,
+        summary="事实有原文证据，外推边界已明确。",
+        claims=[
+            {
+                "claim": "在论文这组长程任务里，只让主智能体在 1.1% 的步骤调用视觉模块",
+                "kind": "metric",
+                "support_status": "supported",
+                "risk": "high",
+                "evidence_quote": (
+                    "Only 1.1% of main-agent steps use the GUI subagent."
+                ),
+                "evidence_location": "E1",
+                "reason": "原文直接给出调用比例和对象。",
+            },
+            {
+                "claim": "其余步骤直接读取文件和网页结构",
+                "kind": "fact",
+                "support_status": "supported",
+                "risk": "medium",
+                "evidence_quote": "reads files and DOM structures directly",
+                "evidence_location": "E2",
+                "reason": "原文直接说明非视觉步骤读取的状态。",
+            },
+            {
+                "claim": "不能直接推成所有自动化任务都更便宜",
+                "kind": "opinion",
+                "support_status": "inference",
+                "risk": "low",
+                "evidence_quote": "",
+                "evidence_location": "",
+                "reason": "作者对实验外推范围的保守判断。",
+            },
+        ],
+        review=review,
+    )
+    unsafe_audit = ClaimAudit(
+        publishable=False,
+        summary="结论仍然超过论文测试范围。",
+        claims=[
+            {
+                "claim": "不能直接推成所有自动化任务都更便宜",
+                "kind": "causal",
+                "support_status": "unsupported",
+                "risk": "high",
+                "evidence_quote": "",
+                "evidence_location": "",
+                "reason": "第一次审计要求把普遍结论改成范围限制。",
+            }
+        ],
+        review=review,
+    )
+
+    class FakeProvider:
+        name = "fake"
+        model = "fake-model"
+        audit_calls = 0
+
+        async def complete(
+            self,
+            system_prompt: str,
+            user_prompt: str,
+            *,
+            json_schema: dict[str, object] | None = None,
+        ) -> WritingResponse:
+            del system_prompt, user_prompt
+            if json_schema is None:
+                output = draft
+            elif json_schema.get("title") == "VerifiedWriting":
+                output = verified.model_dump_json()
+            else:
+                self.audit_calls += 1
+                output = (
+                    unsafe_audit.model_dump_json()
+                    if self.audit_calls == 1
+                    else audit.model_dump_json()
+                )
+            return WritingResponse(output_text=output, raw_response=output)
+
+    class FakeSession:
+        def commit(self) -> None:
+            pass
+
+        def refresh(self, project: object) -> None:
+            del project
+
+    project = SimpleNamespace(
+        article_id=uuid4(),
+        angle_options=[_angle().model_dump(mode="json")],
+        selected_angle_id=None,
+        output_format="short_post",
+        human_input={},
+        draft_content=None,
+        review={},
+        claim_ledger=[],
+        verification={},
+        final_content=None,
+        status="angles_ready",
+        provider=None,
+        model=None,
+        prompt_version=None,
+        error_summary=None,
+    )
+    source_pack = {
+        "analysis_depth": "deep",
+        "source_quality": "source_excerpt",
+        "source_excerpt": (
+            "Only 1.1% of main-agent steps use the GUI subagent. "
+            "The agent reads files and DOM structures directly."
+        ),
+    }
+    service = WritingService(WritingConfig(), provider=FakeProvider())
+    monkeypatch.setattr(service, "get", lambda session, project_id: project)
+    monkeypatch.setattr(
+        service,
+        "_source_pack",
+        lambda session, article_id: source_pack,
+    )
+
+    result = asyncio.run(
+        service.generate_draft(
+            FakeSession(),  # type: ignore[arg-type]
+            uuid4(),
+            angle_id="technical",
+            output_format="short_post",
+            human_input=HumanInput(),
+        )
+    )
+
+    assert result.draft_content == draft
+    assert result.final_content == final
+    assert result.status == "verified_ready"
+    assert result.verification["publishable"] is True
+    assert len(result.claim_ledger) == 3
+    assert result.error_summary is None
+    assert service.provider.audit_calls == 2
+
+
+def test_claim_audit_rejects_new_version_or_untraceable_quote() -> None:
+    content = "项目方的测试显示 GPT-5.6 得分 54.8。"
+    source_pack = {"source_excerpt": "GPT-5.4 scored 54.8 in the project table."}
+    audit = ClaimAudit(
+        publishable=True,
+        summary="看似可以发布。",
+        claims=[
+            {
+                "claim": "GPT-5.6 得分 54.8",
+                "kind": "version",
+                "support_status": "supported",
+                "risk": "high",
+                "evidence_quote": "GPT-5.6 scored 54.8",
+                "evidence_location": "source_excerpt",
+                "reason": "声称来自表格。",
+            }
+        ],
+        review=_publishable_review(),
+    )
+
+    try:
+        _validate_claim_audit(audit, source_pack, content)
+    except ValueError as exc:
+        assert "缺少可追溯" in str(exc)
+    else:
+        raise AssertionError("a model version absent from evidence must be rejected")
+
+
+def test_claim_audit_rejects_numbers_omitted_from_ledger() -> None:
+    content = "模型共有 93 层，其中注意力结构经过调整。"
+    source_pack = {"source_excerpt": "The model has 93 layers."}
+    audit = ClaimAudit(
+        publishable=True,
+        summary="机制描述有证据。",
+        claims=[
+            {
+                "claim": "注意力结构经过调整",
+                "kind": "fact",
+                "support_status": "supported",
+                "risk": "medium",
+                "evidence_quote": "The model has 93 layers.",
+                "evidence_location": "source_excerpt",
+                "reason": "引用了原始资料。",
+            }
+        ],
+        review=_publishable_review(),
+    )
+
+    try:
+        _validate_claim_audit(audit, source_pack, content)
+    except ValueError as exc:
+        assert "没有进入主张账本" in str(exc)
+    else:
+        raise AssertionError("every material number must appear in a metric claim")
+
+
+def _publishable_review() -> WritingReview:
+    return WritingReview(
+        verdict="事实边界清楚，可以继续编辑或发布。",
+        thesis_clarity=9,
+        originality=8,
+        technical_clarity=9,
+        accessibility=9,
+        human_voice=8,
+        issues=[],
+        strongest_line="事实边界清楚。",
+        cut_suggestions=[],
+    )
 
 
 def test_angle_schema_allows_one_grounded_angle_for_thin_sources() -> None:

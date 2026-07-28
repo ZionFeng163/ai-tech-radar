@@ -6,7 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.analysis.schema import OpenSourceStatus, SignalType, TechnicalCategory
 from app.domain import ArticleKind, RadarEditionStatus
-from app.writing.schema import HumanInput, WritingAngle, WritingFormat, WritingReview
+from app.writing.schema import (
+    HumanInput,
+    WritingAngle,
+    WritingClaim,
+    WritingFormat,
+    WritingReview,
+)
 
 
 class SourceReference(BaseModel):
@@ -87,7 +93,10 @@ class WritingProjectResponse(BaseModel):
     output_format: WritingFormat
     human_input: HumanInput
     draft_content: str | None
+    final_content: str | None
     review: WritingReview | None
+    claim_ledger: list[WritingClaim]
+    verification: dict[str, object]
     provider: str | None
     model: str | None
     prompt_version: str | None

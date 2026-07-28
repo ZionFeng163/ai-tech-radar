@@ -13,8 +13,10 @@ Turn source evidence into one useful public idea. Prefer a narrow, supported pos
 2. Separate source facts, source-authored conclusions, editorial inferences, and unknowns.
 3. Select one claim that is both supported and worth explaining.
 4. Draft for the requested format and information budget.
-5. Run fact-checking as a separate pass after drafting.
-6. Apply only minimal voice and Chinese prose corrections after facts are stable.
+5. Run fact-checking and minimal correction as a separate pass after drafting.
+6. Audit the corrected final content independently and expose it only when every
+   factual claim is traceable.
+7. Apply only minimal voice and Chinese prose corrections after facts are stable.
 
 ## Evidence boundary
 

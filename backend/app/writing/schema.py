@@ -63,5 +63,39 @@ class WritingReview(BaseModel):
     cut_suggestions: list[str] = Field(max_length=8)
 
 
+class WritingClaim(BaseModel):
+    """One exact claim span from a draft and the evidence decision for it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    claim: str = Field(min_length=1, max_length=800)
+    kind: Literal["fact", "metric", "version", "causal", "inference", "opinion"]
+    support_status: Literal["supported", "inference", "unsupported", "contradicted"]
+    risk: Literal["high", "medium", "low"]
+    evidence_quote: str = Field(default="", max_length=2_000)
+    evidence_location: str = Field(default="", max_length=300)
+    reason: str = Field(min_length=2, max_length=800)
+
+
+class ClaimAudit(BaseModel):
+    """A bounded, machine-checkable audit of the content that will be published."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    publishable: bool
+    summary: str = Field(min_length=2, max_length=800)
+    claims: list[WritingClaim] = Field(min_length=1, max_length=30)
+    review: WritingReview
+
+
+class VerifiedWriting(BaseModel):
+    """The correction-only output before an independent final claim audit."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    final_content: str = Field(min_length=1, max_length=30_000)
+    changes: list[str] = Field(max_length=12)
+
+
 def strict_schema(model: type[BaseModel]) -> dict[str, object]:
     return model.model_json_schema()

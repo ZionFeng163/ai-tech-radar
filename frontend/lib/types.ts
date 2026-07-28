@@ -195,7 +195,7 @@ export interface WritingAngle {
 }
 
 export interface WritingReviewIssue {
-  category: "fact" | "generic" | "ai_tone" | "logic" | "voice" | "format";
+  category: "fact" | "generic" | "ai_tone" | "logic" | "voice" | "jargon" | "format";
   severity: "high" | "medium" | "low";
   quote: string;
   problem: string;
@@ -214,6 +214,16 @@ export interface WritingReview {
   cut_suggestions: string[];
 }
 
+export interface WritingClaim {
+  claim: string;
+  kind: "fact" | "metric" | "version" | "causal" | "inference" | "opinion";
+  support_status: "supported" | "inference" | "unsupported" | "contradicted";
+  risk: "high" | "medium" | "low";
+  evidence_quote: string;
+  evidence_location: string;
+  reason: string;
+}
+
 export interface WritingProject {
   id: string;
   article_id: string;
@@ -223,7 +233,15 @@ export interface WritingProject {
   output_format: WritingFormat;
   human_input: HumanInput;
   draft_content: string | null;
+  final_content: string | null;
   review: WritingReview | null;
+  claim_ledger: WritingClaim[];
+  verification: {
+    publishable?: boolean;
+    summary?: string;
+    changes?: string[];
+    verified_at?: string;
+  };
   provider: string | null;
   model: string | null;
   prompt_version: string | null;

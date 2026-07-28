@@ -18,8 +18,9 @@ if TYPE_CHECKING:
 class WritingProject(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """One bounded writing workspace per radar article.
 
-    Phase one deliberately stores only the current draft and review instead of an
-    unbounded revision history. Regeneration replaces those fields.
+    The workspace remains bounded: regeneration replaces the current draft,
+    verification result and final publishable content instead of keeping an
+    unbounded revision history.
     """
 
     __tablename__ = "writing_projects"
@@ -40,6 +41,13 @@ class WritingProject(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     human_input: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, nullable=False)
     draft_content: Mapped[str | None] = mapped_column(Text)
     review: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    claim_ledger: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB, default=list, nullable=False
+    )
+    verification: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, nullable=False
+    )
+    final_content: Mapped[str | None] = mapped_column(Text)
     provider: Mapped[str | None] = mapped_column(String(100))
     model: Mapped[str | None] = mapped_column(String(255))
     prompt_version: Mapped[str | None] = mapped_column(String(50))

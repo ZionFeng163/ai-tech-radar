@@ -33,6 +33,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
   const [format, setFormat] = useState<WritingFormat>("short_post");
   const [humanInput, setHumanInput] = useState<HumanInput>(EMPTY_INPUT);
   const [draft, setDraft] = useState("");
+  const [savedContent, setSavedContent] = useState("");
   const [operation, setOperation] = useState<Operation>("init");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -47,7 +48,9 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
       ...EMPTY_INPUT,
       core_take: next.human_input?.core_take ?? "",
     });
-    setDraft(next.draft_content ?? "");
+    const content = next.final_content ?? next.draft_content ?? "";
+    setDraft(content);
+    setSavedContent(content);
     setOperation(null);
     setError("");
   }, [hasSourceExcerpt]);
@@ -124,7 +127,8 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
 
   async function reviewDraft() {
     if (!project || !draft.trim()) return;
-    const saved = draft === project.draft_content ? project : await saveDraft();
+    const saved =
+      draft === savedContent && !project.final_content ? project : await saveDraft();
     if (!saved) return;
     setOperation("review");
     setError("");
@@ -256,7 +260,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             ))}
           </fieldset>
           <button className="action-button studio-generate" disabled={!selectedAngle || operation !== null || !deepAnalysisReady} onClick={generateDraft}>
-            {operation === "draft" ? "正在按参考风格写作…" : project.draft_content ? "按当前选择重新生成" : "直接生成第一版"}
+            {operation === "draft" ? "正在写作、核验并安全改稿…" : project.draft_content ? "按当前选择重新生成" : "生成核验版正文"}
           </button>
         </section>
       ) : null}
@@ -265,30 +269,52 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
         <section className="studio-step studio-editor-section">
           <div className="studio-step-heading">
             <div>
-              <p className="section-index">03 / DRAFT</p>
-              <h2>这是草稿，不是答案</h2>
+              <p className="section-index">03 / {project.final_content ? "VERIFIED COPY" : "DRAFT"}</p>
+              <h2>{project.final_content ? "核验后的可发布稿" : "初稿仍需核验"}</h2>
             </div>
             <span className="draft-count">{draft.length} 字符</span>
           </div>
-          <textarea className="draft-editor" value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="写作草稿" />
+          {project.final_content ? (
+            <p className="studio-help">下面默认展示经过独立主张核验的版本。你修改后，系统会把它重新视为草稿，需要再次核验。</p>
+          ) : null}
+          <textarea className="draft-editor" value={draft} onChange={(event) => setDraft(event.target.value)} aria-label={project.final_content ? "核验后正文" : "写作草稿"} />
           <div className="studio-actions">
-            <button className="secondary-button" disabled={operation !== null || draft === project.draft_content} onClick={saveDraft}>{operation === "save" ? "保存中…" : "保存修改"}</button>
+            <button className="secondary-button" disabled={operation !== null || draft === savedContent} onClick={saveDraft}>{operation === "save" ? "保存中…" : "保存修改"}</button>
             <button className="secondary-button" disabled={operation !== null} onClick={copyDraft}>{copied ? "已复制" : "复制正文"}</button>
-            <button className="action-button" disabled={operation !== null || !draft.trim()} onClick={reviewDraft}>{operation === "review" ? "严格审校中…" : "检查事实与 AI 腔"}</button>
+            <button className="action-button" disabled={operation !== null || !draft.trim()} onClick={reviewDraft}>{operation === "review" ? "逐条核验并改稿中…" : project.final_content ? "重新核验当前正文" : "核验并生成安全稿"}</button>
           </div>
           {project.error_summary ? (
             <div className="studio-warning" role="status">
-              <strong>草稿已保留，审校建议修改</strong>
+              <strong>草稿已保留，未生成可发布稿</strong>
               <p>{project.error_summary}</p>
             </div>
+          ) : null}
+          {project.final_content && project.verification.publishable ? (
+            <div className="verification-summary" role="status">
+              <strong>已通过独立主张核验</strong>
+              <p>{project.verification.summary}</p>
+              <span>{project.claim_ledger.length} 条主张已绑定证据或明确标为作者判断</span>
+              {project.verification.changes?.length ? (
+                <details>
+                  <summary>查看本次改动</summary>
+                  <ul>{project.verification.changes.map((change) => <li key={change}>{change}</li>)}</ul>
+                </details>
+              ) : null}
+            </div>
+          ) : null}
+          {project.final_content && project.draft_content !== project.final_content ? (
+            <details className="original-draft">
+              <summary>查看核验前初稿</summary>
+              <pre>{project.draft_content}</pre>
+            </details>
           ) : null}
         </section>
       ) : null}
 
       {project.review ? (
         <section className="studio-step studio-review">
-          <p className="section-index">04 / EDITOR REVIEW</p>
-          <h2>审校意见</h2>
+          <p className="section-index">04 / FINAL REVIEW</p>
+          <h2>{project.final_content ? "最终稿编辑检查" : "初稿审校意见"}</h2>
           <p className="review-verdict">{project.review.verdict}</p>
           <div className="review-scores">
             <Score label="论点" value={project.review.thesis_clarity} />
