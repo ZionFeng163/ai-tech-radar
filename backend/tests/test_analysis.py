@@ -78,7 +78,7 @@ def test_default_production_config_uses_bailian_qwen() -> None:
     config = AnalysisConfig.from_file(DEFAULT_ANALYSIS_CONFIG_PATH)
 
     assert config.provider == "bailian"
-    assert config.model == "qwen3.7-plus-2026-05-26"
+    assert config.model == "qwen3.7-flash-2026-07-15"
     assert config.api_key_env == "DASHSCOPE_API_KEY"
     assert config.api_base == "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
@@ -325,7 +325,7 @@ def test_bailian_provider_uses_json_mode_without_thinking(monkeypatch) -> None:
     provider = BailianChatProvider(
         AnalysisConfig(
             provider="bailian",
-            model="qwen3.7-plus-2026-05-26",
+            model="qwen3.7-flash-2026-07-15",
             api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
             api_key_env="DASHSCOPE_API_KEY",
         ),
@@ -335,7 +335,7 @@ def test_bailian_provider_uses_json_mode_without_thinking(monkeypatch) -> None:
     asyncio.run(client.aclose())
 
     assert captured["url"] == ("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions")
-    assert captured["model"] == "qwen3.7-plus-2026-05-26"
+    assert captured["model"] == "qwen3.7-flash-2026-07-15"
     assert captured["response_format"] == {"type": "json_object"}
     assert captured["enable_thinking"] is False
     assert "JSON Schema" in captured["messages"][1]["content"]
@@ -361,7 +361,7 @@ def test_bailian_provider_surfaces_quota_error_code(monkeypatch) -> None:
     provider = BailianChatProvider(
         AnalysisConfig(
             provider="bailian",
-            model="qwen3.7-plus-2026-05-26",
+            model="qwen3.7-flash-2026-07-15",
             api_key_env="DASHSCOPE_API_KEY",
         ),
         client=client,

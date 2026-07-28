@@ -18,7 +18,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
     config = WritingConfig.from_file(DEFAULT_WRITING_CONFIG_PATH)
 
     assert config.provider == "bailian"
-    assert config.model == "qwen3.7-plus-2026-05-26"
+    assert config.model == "qwen3.7-flash-2026-07-15"
     assert config.prompt_version == "writing-studio-v5-readable-freshness"
     assert config.max_output_tokens > 2_000
 
