@@ -17,7 +17,7 @@ def test_source_failures_are_summarized_without_leaking_long_responses() -> None
     summary = ManualRadarService._source_failure_summary(
         [
             {
-                "source": "arxiv",
+                "source": "hugging-face-papers",
                 "status": "failed",
                 "error": "Client error '429' for a very long URL",
             },
@@ -25,4 +25,4 @@ def test_source_failures_are_summarized_without_leaking_long_responses() -> None
         ]
     )
 
-    assert summary == "arxiv 请求频率受限"
+    assert summary == "hugging-face-papers 请求频率受限"

@@ -20,6 +20,29 @@ from app.sources.base import (
 STORY_IDS = TypeAdapter(list[int])
 JSON_OBJECT = TypeAdapter(dict[str, JsonValue])
 TAG_RE = re.compile(r"<[^>]+>")
+FEEDS = ("topstories", "beststories", "newstories")
+TECH_TERMS = (
+    " ai ",
+    "agent",
+    "artificial intelligence",
+    "claude",
+    "codex",
+    "cuda",
+    "deepseek",
+    "gpt",
+    "gpu",
+    "kimi",
+    "language model",
+    "llm",
+    "machine learning",
+    "model",
+    "moonshot",
+    "neural",
+    "open source",
+    "qwen",
+    "robot",
+    "transformer",
+)
 
 
 class HackerNewsAdapter(SourceAdapter):
@@ -42,26 +65,86 @@ class HackerNewsAdapter(SourceAdapter):
         del cursor
         if limit < 1:
             raise ValueError("limit must be at least 1")
-        response = await self._client.get(
-            "https://hacker-news.firebaseio.com/v0/topstories.json"
+        feed_results = await asyncio.gather(
+            *(self._fetch_feed(feed) for feed in FEEDS)
         )
-        response.raise_for_status()
-        story_ids = STORY_IDS.validate_python(response.json())[: min(limit, 50)]
-        stories = await asyncio.gather(*(self._fetch_story(story_id) for story_id in story_ids))
+        story_feeds: dict[int, list[tuple[str, int]]] = {}
+        candidates_per_feed = min(max(limit * 3, 60), 100)
+        for feed, story_ids in zip(FEEDS, feed_results, strict=True):
+            for rank, story_id in enumerate(story_ids[:candidates_per_feed], start=1):
+                story_feeds.setdefault(story_id, []).append((feed, rank))
+        semaphore = asyncio.Semaphore(20)
+        story_results = await asyncio.gather(
+            *(
+                self._fetch_story_safely(story_id, semaphore)
+                for story_id in story_feeds
+            )
+        )
+        stories = [story for story in story_results if story]
+        hottest = sorted(stories, key=self._engagement_score, reverse=True)
+        general_quota = min(limit, max(5, limit // 3))
+        selected = hottest[:general_quota]
+        selected_ids = {self._integer(story, "id") for story in selected}
+        relevant = sorted(
+            (
+                story
+                for story in stories
+                if self._integer(story, "id") not in selected_ids
+                and self._is_relevant(story)
+            ),
+            key=self._engagement_score,
+            reverse=True,
+        )
+        for story in relevant:
+            if len(selected) >= limit:
+                break
+            selected.append(story)
+            selected_ids.add(self._integer(story, "id"))
+        for story in hottest:
+            if len(selected) >= limit:
+                break
+            story_id = self._integer(story, "id")
+            if story_id not in selected_ids:
+                selected.append(story)
+                selected_ids.add(story_id)
         items = [
             CollectedItem(
                 external_id=str(story["id"]),
                 url=AnyHttpUrl(f"https://news.ycombinator.com/item?id={story['id']}"),
-                payload={**story, "rank": rank},
+                payload={
+                    **story,
+                    "rank": rank,
+                    "feeds": [
+                        {"name": feed, "rank": feed_rank}
+                        for feed, feed_rank in story_feeds[
+                            self._integer(story, "id")
+                        ]
+                    ],
+                },
             )
-            for rank, story in enumerate(stories, start=1)
-            if story
+            for rank, story in enumerate(selected, start=1)
         ]
         return FetchBatch(
             items=items,
-            next_cursor=AdapterCursor(value={"snapshot": "topstories"}),
+            next_cursor=AdapterCursor(value={"snapshot": list(FEEDS)}),
             has_more=False,
         )
+
+    async def _fetch_feed(self, feed: str) -> list[int]:
+        response = await self._client.get(
+            f"https://hacker-news.firebaseio.com/v0/{feed}.json"
+        )
+        response.raise_for_status()
+        return STORY_IDS.validate_python(response.json())
+
+    async def _fetch_story_safely(
+        self, story_id: int, semaphore: asyncio.Semaphore
+    ) -> dict[str, JsonValue]:
+        async with semaphore:
+            try:
+                return await self._fetch_story(story_id)
+            except (httpx.HTTPError, ValueError):
+                return {}
 
     async def _fetch_story(self, story_id: int) -> dict[str, JsonValue]:
         response = await self._client.get(
@@ -114,6 +197,7 @@ class HackerNewsAdapter(SourceAdapter):
                 "score": score,
                 "comments": comments,
                 "rank": rank,
+                "feeds": payload.get("feeds", []),
                 "discussion_url": str(item.url),
                 "target_url": target_url,
             },
@@ -145,3 +229,16 @@ class HackerNewsAdapter(SourceAdapter):
     @staticmethod
     def _clean_html(value: str) -> str:
         return html.unescape(TAG_RE.sub(" ", value)).replace("\n", " ").strip()
+
+    @classmethod
+    def _engagement_score(cls, story: dict[str, JsonValue]) -> int:
+        return cls._integer(story, "score", default=0) + (
+            2 * cls._integer(story, "descendants", default=0)
+        )
+
+    @classmethod
+    def _is_relevant(cls, story: dict[str, JsonValue]) -> bool:
+        title = cls._optional_string(story, "title") or ""
+        text = cls._optional_string(story, "text") or ""
+        haystack = f" {title} {text} ".casefold()
+        return any(term in haystack for term in TECH_TERMS)

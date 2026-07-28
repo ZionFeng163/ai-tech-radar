@@ -2,8 +2,6 @@ import asyncio
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 
 from app.collection.locking import source_lock_key
 from app.collection.registry import SourceRegistry
@@ -19,16 +17,16 @@ from app.collection.scheduler import (
 def test_registry_contains_all_mvp_sources() -> None:
     assert SourceRegistry().slugs == (
         "hacker-news",
-        "dev-community",
-        "arxiv",
         "hugging-face",
+        "hugging-face-papers",
+        "dev-community",
     )
 
 
 def test_source_lock_key_is_stable_signed_bigint() -> None:
-    first = source_lock_key("arxiv")
+    first = source_lock_key("hacker-news")
 
-    assert first == source_lock_key("arxiv")
+    assert first == source_lock_key("hacker-news")
     assert first != source_lock_key("hugging-face")
     assert -(2**63) <= first < 2**63
 
@@ -68,13 +66,7 @@ def test_schedule_registration_is_idempotent_and_serial_per_source() -> None:
     register_jobs(scheduler, config, job_function=job)
     jobs = sorted(scheduler.get_jobs(), key=lambda item: item.id)
 
-    assert [job.id for job in jobs] == [
-        "collect:arxiv",
-        "collect:hugging-face",
-    ]
-    assert all(job.max_instances == 1 and job.coalesce is True for job in jobs)
-    assert isinstance(scheduler.get_job("collect:arxiv").trigger, IntervalTrigger)
-    assert isinstance(scheduler.get_job("collect:hugging-face").trigger, CronTrigger)
+    assert jobs == []
 
 
 def test_one_scheduled_source_failure_does_not_block_another() -> None:

@@ -32,10 +32,8 @@ def test_config_supports_required_tasks_and_does_not_persist_token() -> None:
         "image-text-to-text",
         "automatic-speech-recognition",
     }.issubset(config.model_tasks)
-    assert from_file.resource_types == [
-        HuggingFaceResourceType.MODEL,
-        HuggingFaceResourceType.DATASET,
-    ]
+    assert from_file.resource_types == [HuggingFaceResourceType.MODEL]
+    assert from_file.include_recent_updates is False
     assert "token" not in config.persisted_config()
     assert config.persisted_config()["authentication"] == "token"
 
@@ -66,6 +64,7 @@ def test_model_pagination_watermark_and_bad_item_isolation() -> None:
                     token="test-token",
                     resource_types=[HuggingFaceResourceType.MODEL],
                     model_tasks=["text-generation"],
+                    include_global_trending_models=False,
                     initial_window_hours=24,
                     overlap_seconds=0,
                     request_interval_seconds=0,
@@ -90,7 +89,9 @@ def test_model_pagination_watermark_and_bad_item_isolation() -> None:
         assert final.next_cursor.value["completed"] is True
         assert final.next_cursor.value["errors"][0]["item_id"] == "acme/bad"
         assert (
-            final.next_cursor.value["watermarks"]["model|text-generation|*"]
+            final.next_cursor.value["watermarks"][
+                "model|text-generation|*|lastModified"
+            ]
             == "2026-07-17T03:00:00+00:00"
         )
 
@@ -120,6 +121,7 @@ def test_dataset_filter_author_and_normalization() -> None:
                     resource_types=[HuggingFaceResourceType.DATASET],
                     dataset_filters=["task_categories:text-classification"],
                     organizations=["acme"],
+                    include_global_trending_models=False,
                     initial_window_hours=48,
                     request_interval_seconds=0,
                 ),
@@ -158,6 +160,7 @@ def test_optional_readme_enrichment_provides_analysis_content() -> None:
                 HuggingFaceConfig(
                     resource_types=[HuggingFaceResourceType.MODEL],
                     model_tasks=["text-generation"],
+                    include_global_trending_models=False,
                     fetch_readme=True,
                     request_interval_seconds=0,
                 ),
@@ -202,6 +205,7 @@ def test_rate_limit_waits_then_retries(
                 HuggingFaceConfig(
                     resource_types=[HuggingFaceResourceType.MODEL],
                     model_tasks=["text-generation"],
+                    include_global_trending_models=False,
                     max_retries=1,
                     request_interval_seconds=0,
                 ),
@@ -233,6 +237,7 @@ def test_failed_query_does_not_block_the_next_task() -> None:
                 HuggingFaceConfig(
                     resource_types=[HuggingFaceResourceType.MODEL],
                     model_tasks=["broken-task", "text-generation"],
+                    include_global_trending_models=False,
                     initial_window_hours=24,
                     max_retries=0,
                     request_interval_seconds=0,
@@ -244,6 +249,53 @@ def test_failed_query_does_not_block_the_next_task() -> None:
 
         assert len(batch.items) == 1
         assert batch.has_more is False
-        assert batch.next_cursor.value["errors"][0]["query"] == "model|broken-task|*"
+        assert (
+            batch.next_cursor.value["errors"][0]["query"]
+            == "model|broken-task|*|lastModified"
+        )
+
+    asyncio.run(scenario())
+
+
+def test_global_trending_uses_platform_score_and_current_signal_time() -> None:
+    payload = {
+        "id": "moonshotai/Kimi-K3",
+        "author": "moonshotai",
+        "createdAt": "2026-06-20T08:00:00Z",
+        "lastModified": "2026-07-27T16:29:18Z",
+        "likes": 6477,
+        "trendingScore": 6075,
+        "pipeline_tag": "image-text-to-text",
+        "tags": ["transformers"],
+        "cardData": {"license": "modified-mit"},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["sort"] == "trendingScore"
+        assert "pipeline_tag" not in request.url.params
+        return httpx.Response(200, json=[payload], request=request)
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = HuggingFaceAdapter(
+                HuggingFaceConfig(
+                    resource_types=[HuggingFaceResourceType.MODEL],
+                    model_tasks=[],
+                    include_global_trending_models=True,
+                    include_recent_updates=False,
+                    request_interval_seconds=0,
+                ),
+                client=client,
+                clock=lambda: NOW,
+            )
+            batch = await adapter.fetch(limit=5)
+            normalized = adapter.normalize(batch.items[0])
+
+        assert normalized.external_id == "model:moonshotai/Kimi-K3"
+        assert normalized.published_at == datetime(
+            2026, 7, 27, 16, 29, 18, tzinfo=UTC
+        )
+        assert normalized.metadata["trending_score"] == 6075
+        assert batch.has_more is False
 
     asyncio.run(scenario())

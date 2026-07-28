@@ -21,8 +21,8 @@ class ManualRadarService:
     DEFAULT_SOURCE_LIMITS = {
         "hacker-news": 30,
         "dev-community": 12,
-        "arxiv": 5,
-        "hugging-face": 5,
+        "hugging-face": 10,
+        "hugging-face-papers": 8,
     }
 
     def __init__(
@@ -84,7 +84,11 @@ class ManualRadarService:
                 except Exception as exc:
                     LOGGER.exception("manual collection failed for source=%s", source_slug)
                     source_results.append(
-                        {"source": source_slug, "status": "failed", "error": str(exc)[:500]}
+                        {
+                            "source": source_slug,
+                            "status": "failed",
+                            "error": self._error_message(exc)[:500],
+                        }
                     )
                 else:
                     source_results.append(result.as_dict())
@@ -211,7 +215,11 @@ class ManualRadarService:
                 )
         except Exception as exc:
             LOGGER.exception("manual radar edition failed edition=%s", edition_id)
-            self._fail(edition_id, source_results, str(exc))
+            self._fail(edition_id, source_results, self._error_message(exc))
+
+    @staticmethod
+    def _error_message(error: BaseException) -> str:
+        return str(error).strip() or type(error).__name__
 
     @staticmethod
     def _raw_items_for_run(run_id: UUID) -> list[UUID]:

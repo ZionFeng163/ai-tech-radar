@@ -57,6 +57,8 @@ def article_kind(source: Source, raw_item: RawItem) -> ArticleKind:
         return ArticleKind.RELEASE
     if source.kind is SourceKind.HUGGING_FACE:
         resource_type = raw_item.source_metadata.get("resource_type")
+        if resource_type == "paper":
+            return ArticleKind.PAPER
         if resource_type == "dataset" or raw_item.external_id.startswith("dataset:"):
             return ArticleKind.DATASET
         return ArticleKind.MODEL

@@ -32,6 +32,8 @@ class HuggingFaceConfig(BaseModel):
     dataset_filters: list[str] = Field(default_factory=list)
     authors: list[str] = Field(default_factory=list)
     organizations: list[str] = Field(default_factory=list)
+    include_global_trending_models: bool = True
+    include_recent_updates: bool = True
     initial_window_hours: int = Field(default=24 * 7, ge=1, le=24 * 90)
     overlap_seconds: int = Field(default=300, ge=0, le=86_400)
     page_size: int = Field(default=30, ge=1, le=100)

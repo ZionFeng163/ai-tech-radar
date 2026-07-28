@@ -1,4 +1,1 @@
-from app.sources.arxiv.adapter import ArxivAdapter
-from app.sources.arxiv.config import ArxivConfig
-
-__all__ = ["ArxivAdapter", "ArxivConfig"]
+"""arXiv URL parsing retained for the user-supplied paper composer."""

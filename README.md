@@ -86,22 +86,11 @@ docker compose exec backend alembic upgrade head
 docker compose exec backend alembic current
 ```
 
-## arXiv 采集样例
-
-采集最多 3 篇论文并幂等写入 `RawItem`：
-
-```bash
-docker compose exec backend python -m app.sources.arxiv.sample --limit 3 --persist
-```
-
-分类、关键词、时间窗口、分页、限流、重试和增量游标的详细说明见
-[`backend/docs/arxiv-collector.md`](backend/docs/arxiv-collector.md)。
-
-## GitHub Releases 适配器
+## GitHub 来源
 
 GitHub Releases 适配器代码仍作为采集实现样例保留，但不再注册到产品的手动雷达中。
 整包版本日志缺少独立的社区热度信号，也容易让常规维护挤占首页位置；重要的单点发布应由
-Hacker News 等社区来源或项目的独立公告进入雷达。
+Hacker News 等社区来源或 Hugging Face 趋势模型进入雷达。
 
 ## Hugging Face 采集样例
 
@@ -121,19 +110,21 @@ docker compose exec backend python -m app.sources.hugging_face.sample --limit 3 
 并保存为不可变的雷达期次。首页日期选择器使用手动抓取时间，不使用技术发布时间；
 技术发布时间仍作为文章元数据显示。
 
-默认优先抓取经过社区排序的免费来源：
+默认优先抓取经过社区或平台排序的免费 API 来源：
 
-- Hacker News Top Stories：排名、投票数和评论数；单次最多取 30 条，作为主要圈内热点来源。
+- Hacker News Top、Best、New 三个榜单：合并排名、投票数和评论数，兼顾高热度和 AI 相关性。
+- Hugging Face 全站趋势模型：直接使用平台趋势分，覆盖 Kimi、Qwen、DeepSeek 等最新发布。
+- Hugging Face Daily Papers：使用平台每日精选与投票，不直连 arXiv。
 - DEV Community 近 7 日热门：摘要、标签、公开反应数和评论数。
 
-同时少量保留 arXiv 和 Hugging Face 作为原始技术信号。GitHub Releases 的整包更新日志
-不再作为独立首页信号，以免常规版本维护挤占值得讨论的单点事件。社区来源的互动数据会
-进入快速概览的热度判断，不需要密钥；单次手动抓取对原始来源使用更小配额。
+不再主动抓取 arXiv：论文热点由 Hugging Face Daily Papers 提供，避免慢请求拖垮整期。
+GitHub Releases 的整包更新日志也不再作为独立首页信号，以免常规维护挤占值得讨论的
+单点事件。社区来源的互动数据会进入快速概览的热度判断。
 
 也可以仅调试单个来源：
 
 ```bash
-docker compose exec backend python -m app.cli collect --source arxiv --limit 3
+docker compose exec backend python -m app.cli collect --source hugging-face-papers --limit 3
 ```
 
 Compose 不启动定时采集服务。统一运行器仍记录 `FetchRun` 状态和统计，使用指数退避重试，

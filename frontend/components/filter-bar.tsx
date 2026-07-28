@@ -42,9 +42,9 @@ export function FilterBar({
         <select name="source" defaultValue={source ?? ""}>
           <option value="">全部来源</option>
           <option value="hacker-news">Hacker News</option>
+          <option value="hugging-face">Hugging Face 趋势模型</option>
+          <option value="hugging-face-papers">HF Daily Papers</option>
           <option value="dev-community">DEV Community</option>
-          <option value="arxiv">arXiv</option>
-          <option value="hugging-face">Hugging Face</option>
         </select>
       </label>
       <label>

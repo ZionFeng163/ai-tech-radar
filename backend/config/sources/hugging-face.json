@@ -1,21 +1,11 @@
 {
-  "resource_types": ["model", "dataset"],
-  "model_tasks": [
-    "text-generation",
-    "image-text-to-text",
-    "automatic-speech-recognition"
-  ],
+  "resource_types": ["model"],
+  "model_tasks": [],
   "dataset_filters": [],
   "authors": [],
-  "organizations": [
-    "deepseek-ai",
-    "Qwen",
-    "meta-llama",
-    "google",
-    "mistralai",
-    "nvidia",
-    "BAAI"
-  ],
+  "include_global_trending_models": true,
+  "include_recent_updates": false,
+  "organizations": [],
   "initial_window_hours": 72,
   "overlap_seconds": 300,
   "page_size": 30,

@@ -14,7 +14,7 @@ FastAPI 提供文章列表、详情、分类聚合、每日简报和全文搜索
 | 参数 | 含义 |
 | --- | --- |
 | `date_from` / `date_to` | UTC 发布日期范围，首尾日期均包含 |
-| `source` | 来源 slug，如 `hacker-news`、`dev-community`、`arxiv`、`hugging-face` |
+| `source` | 来源 slug，如 `hacker-news`、`hugging-face`、`hugging-face-papers` |
 | `category` | 主技术分类 |
 | `importance_min` | 最低重要性评分，0 至 10 |
 | `open_source_status` | `open`、`partial`、`closed` 或 `unknown` |
@@ -55,7 +55,7 @@ curl 'http://localhost:8000/daily-brief?date=2026-07-19&limit=10'
 筛选和 cursor 分页。
 
 ```bash
-curl 'http://localhost:8000/search?q=transformer&source=arxiv&limit=20'
+curl 'http://localhost:8000/search?q=transformer&source=hugging-face-papers&limit=20'
 ```
 
 ## 性能与索引

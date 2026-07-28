@@ -1,6 +1,7 @@
 # 采集调度与运行记录
 
-统一入口会从来源注册表构建 Hacker News、DEV Community、arXiv 或 Hugging Face
+统一入口会从来源注册表构建 Hacker News、DEV Community、Hugging Face 趋势模型
+或 Hugging Face Daily Papers
 适配器，先取得 PostgreSQL advisory lock，再创建一条 `FetchRun`，逐页幂等写入
 `RawItem` 并更新来源游标。GitHub Releases 适配器保留在代码中，但不再进入产品雷达。
 
@@ -9,7 +10,7 @@
 在 Docker Compose 环境中运行一个来源：
 
 ```bash
-docker compose exec backend python -m app.cli collect --source arxiv
+docker compose exec backend python -m app.cli collect --source hugging-face-papers
 ```
 
 调试时可用 `--limit 3` 限制本次最多采集三条；`--max-attempts` 和

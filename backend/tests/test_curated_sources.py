@@ -8,7 +8,9 @@ from app.sources.hacker_news import HackerNewsAdapter
 
 def test_hacker_news_adapter_preserves_rank_and_engagement() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/topstories.json"):
+        if request.url.path.endswith(
+            ("/topstories.json", "/beststories.json", "/newstories.json")
+        ):
             return httpx.Response(200, json=[101])
         return httpx.Response(
             200,

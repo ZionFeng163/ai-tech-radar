@@ -4,7 +4,7 @@ import re
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 from urllib.parse import quote, urlparse
 
 import httpx
@@ -48,10 +48,14 @@ class _HubQuery(BaseModel):
     resource_type: HuggingFaceResourceType
     filter: str | None = None
     author: str | None = None
+    sort: Literal["lastModified", "trendingScore"] = "lastModified"
 
     @property
     def key(self) -> str:
-        return f"{self.resource_type.value}|{self.filter or '*'}|{self.author or '*'}"
+        return (
+            f"{self.resource_type.value}|{self.filter or '*'}|"
+            f"{self.author or '*'}|{self.sort}"
+        )
 
 
 class _HubCursor(BaseModel):
@@ -142,7 +146,7 @@ class HuggingFaceAdapter(SourceAdapter):
                 try:
                     modified_value = self._required_string(value, "lastModified")
                     modified = self._parse_datetime(modified_value)
-                    if modified < cutoff:
+                    if query.sort == "lastModified" and modified < cutoff:
                         reached_cutoff = True
                         break
                     item = self._collected_item(query, value)
@@ -160,7 +164,7 @@ class HuggingFaceAdapter(SourceAdapter):
                 self._remember_query_maximum(state, modified)
                 items.append(item)
 
-            if reached_cutoff or next_url is None:
+            if reached_cutoff or next_url is None or query.sort == "trendingScore":
                 self._complete_query(state)
             else:
                 state.next_url = next_url
@@ -195,6 +199,11 @@ class HuggingFaceAdapter(SourceAdapter):
         ) or None
         last_modified = self._required_string(payload, "lastModified")
         created_at = self._optional_string(payload, "createdAt") or last_modified
+        query_value = payload.get("_query")
+        query = query_value if isinstance(query_value, dict) else {}
+        published_at = (
+            last_modified if query.get("sort") == "trendingScore" else created_at
+        )
         pipeline_tag = self._optional_string(payload, "pipeline_tag")
         license_name = self._license(card_data, tags)
         kind = (
@@ -210,6 +219,7 @@ class HuggingFaceAdapter(SourceAdapter):
             "pipeline_tag": pipeline_tag,
             "downloads": payload.get("downloads"),
             "likes": payload.get("likes"),
+            "trending_score": payload.get("trendingScore"),
             "sha": payload.get("sha"),
             "private": payload.get("private"),
             "gated": payload.get("gated"),
@@ -219,7 +229,7 @@ class HuggingFaceAdapter(SourceAdapter):
             "last_modified": payload.get("lastModified"),
             "tags": cast(list[JsonValue], tags),
             "card_data": card_data,
-            "query": payload.get("_query"),
+            "query": query,
         }
         return NormalizedItem(
             external_id=item.external_id,
@@ -227,7 +237,7 @@ class HuggingFaceAdapter(SourceAdapter):
             canonical_url=item.url,
             title=title,
             content=content,
-            published_at=self._parse_datetime(created_at),
+            published_at=self._parse_datetime(published_at),
             updated_at=self._parse_datetime(last_modified),
             authors=[
                 AuthorData(
@@ -247,8 +257,10 @@ class HuggingFaceAdapter(SourceAdapter):
 
     def _prepare_cursor(self, cursor: AdapterCursor | None) -> _HubCursor:
         previous = _HubCursor.model_validate(cursor.value) if cursor else _HubCursor()
-        if previous.completed or not previous.queries:
-            queries = self._queries()
+        queries = self._queries()
+        configured_keys = [query.key for query in queries]
+        cursor_keys = [query.key for query in previous.queries]
+        if previous.completed or not previous.queries or cursor_keys != configured_keys:
             initial = self._aware_now() - timedelta(hours=self.config.initial_window_hours)
             watermarks = {
                 query.key: previous.watermarks.get(query.key, initial.isoformat())
@@ -264,19 +276,30 @@ class HuggingFaceAdapter(SourceAdapter):
         author_values: list[str | None] = [*authors] if authors else [None]
         queries: list[_HubQuery] = []
         if HuggingFaceResourceType.MODEL in self.config.resource_types:
-            model_filters: list[str | None] = (
-                [*self.config.model_tasks] if self.config.model_tasks else [None]
-            )
-            queries.extend(
-                _HubQuery(
-                    resource_type=HuggingFaceResourceType.MODEL,
-                    filter=filter_value,
-                    author=author,
+            if self.config.include_global_trending_models:
+                queries.append(
+                    _HubQuery(
+                        resource_type=HuggingFaceResourceType.MODEL,
+                        sort="trendingScore",
+                    )
                 )
-                for author in author_values
-                for filter_value in model_filters
-            )
-        if HuggingFaceResourceType.DATASET in self.config.resource_types:
+            if self.config.include_recent_updates:
+                model_filters: list[str | None] = (
+                    [*self.config.model_tasks] if self.config.model_tasks else [None]
+                )
+                queries.extend(
+                    _HubQuery(
+                        resource_type=HuggingFaceResourceType.MODEL,
+                        filter=filter_value,
+                        author=author,
+                    )
+                    for author in author_values
+                    for filter_value in model_filters
+                )
+        if (
+            self.config.include_recent_updates
+            and HuggingFaceResourceType.DATASET in self.config.resource_types
+        ):
             dataset_filters: list[str | None] = (
                 [*self.config.dataset_filters] if self.config.dataset_filters else [None]
             )
@@ -302,7 +325,7 @@ class HuggingFaceAdapter(SourceAdapter):
     @staticmethod
     def _query_params(query: _HubQuery, limit: int) -> dict[str, str | int | bool]:
         params: dict[str, str | int | bool] = {
-            "sort": "lastModified",
+            "sort": query.sort,
             "direction": -1,
             "limit": limit,
             "full": True,

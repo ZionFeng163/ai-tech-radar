@@ -33,7 +33,11 @@ const article = {
   open_source_status: "open" as const,
   published_at: "2026-07-22T08:00:00Z",
   event_cluster_id: null,
-  sources: [{ slug: "arxiv", name: "arXiv", item_url: "https://example.com/paper" }],
+  sources: [{
+    slug: "hugging-face-papers",
+    name: "Hugging Face Daily Papers",
+    item_url: "https://example.com/paper",
+  }],
   authors: [{ name: "Radar Lab", url: null }],
 };
 
@@ -99,7 +103,7 @@ describe("Home", () => {
         status: "failed",
         article_count: 37,
         source_results: [{
-          source: "arxiv",
+          source: "hugging-face-papers",
           status: "failed",
           error: "HTTP 429",
         }],
@@ -131,7 +135,7 @@ describe("Home", () => {
     expect(screen.getByText("抓取 37 条")).toBeInTheDocument();
     expect(screen.getByText("完成概览 6 条")).toBeInTheDocument();
     expect(screen.getByText("可展示 0 条")).toBeInTheDocument();
-    expect(screen.getByText("arxiv：请求频率受限")).toBeInTheDocument();
+    expect(screen.getByText("hugging-face-papers：请求频率受限")).toBeInTheDocument();
     expect(getArticles).toHaveBeenCalledWith(
       expect.objectContaining({ edition: "edition-failed" }),
     );

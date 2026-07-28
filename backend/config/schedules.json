@@ -1,14 +1,3 @@
 {
-  "sources": {
-    "arxiv": {
-      "enabled": true,
-      "trigger": "interval",
-      "interval_minutes": 60
-    },
-    "hugging-face": {
-      "enabled": true,
-      "trigger": "cron",
-      "cron": "45 */2 * * *"
-    }
-  }
+  "sources": {}
 }

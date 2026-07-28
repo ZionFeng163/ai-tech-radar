@@ -1,0 +1,7 @@
+{
+  "initial_window_hours": 72,
+  "overlap_seconds": 300,
+  "page_size": 30,
+  "timeout_seconds": 15,
+  "max_retries": 2
+}

@@ -98,7 +98,11 @@ class CollectionRunner:
 
             def record_retry(attempt: int, error: Exception, delay: float) -> None:
                 retry_errors.append(
-                    {"attempt": attempt, "error": str(error)[:500], "delay_seconds": delay}
+                    {
+                        "attempt": attempt,
+                        "error": self._error_message(error)[:500],
+                        "delay_seconds": delay,
+                    }
                 )
 
             async def collect_attempt(_attempt: int) -> None:
@@ -131,7 +135,7 @@ class CollectionRunner:
                     max_attempts=max_attempts,
                     trigger=trigger,
                     retry_errors=retry_errors,
-                    error_summary=str(error),
+                    error_summary=self._error_message(error),
                 )
                 raise
 
@@ -163,6 +167,10 @@ class CollectionRunner:
                 if progress.cursor
                 else {},
             )
+
+    @staticmethod
+    def _error_message(error: BaseException) -> str:
+        return str(error).strip() or type(error).__name__
 
     @staticmethod
     def _prepare_run(
