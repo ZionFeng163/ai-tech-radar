@@ -687,10 +687,10 @@ def _publishable_review() -> WritingReview:
     )
 
 
-def test_angle_schema_allows_one_grounded_angle_for_thin_sources() -> None:
+def test_angle_schema_always_requires_three_distinct_options() -> None:
     schema = WritingAngleSet.model_json_schema()
 
-    assert schema["properties"]["angles"]["minItems"] == 1
+    assert schema["properties"]["angles"]["minItems"] == 3
     assert schema["properties"]["angles"]["maxItems"] == 3
 
 
@@ -714,16 +714,32 @@ def _angle(**overrides: object) -> WritingAngle:
     return WritingAngle.model_validate(values)
 
 
-def test_angle_rejects_internal_interface_language_in_public_fields() -> None:
-    angle_set = WritingAngleSet(
+def _angle_set(primary: WritingAngle) -> WritingAngleSet:
+    return WritingAngleSet(
         angles=[
+            primary,
             _angle(
-                thesis=(
-                    "AREX 通过 update_context 显式维护已验证发现、"
-                    "被拒候选项和未决约束，避免重复探索无效路径。"
-                )
-            )
+                id="industry",
+                label="谁来决定规则",
+                thesis="这件事真正改变的是规则由谁制定，以及平台需要为哪些选择负责。",
+            ),
+            _angle(
+                id="practitioner",
+                label="使用时少一步",
+                thesis="对使用者来说，最直接的变化是少做重复选择，同时保留明确边界。",
+            ),
         ]
+    )
+
+
+def test_angle_rejects_internal_interface_language_in_public_fields() -> None:
+    angle_set = _angle_set(
+        _angle(
+            thesis=(
+                "AREX 通过 update_context 显式维护已验证发现、"
+                "被拒候选项和未决约束，避免重复探索无效路径。"
+            )
+        )
     )
 
     try:
@@ -738,16 +754,14 @@ def test_angle_rejects_internal_interface_language_in_public_fields() -> None:
 
 
 def test_angle_allows_a_technical_term_that_can_be_explained_in_prose() -> None:
-    angle_set = WritingAngleSet(
-        angles=[
-            _angle(
-                label="少看屏幕",
-                thesis=(
-                    "长程任务不必每一步都看截图；StateAct 只在 1.1% 的步骤里"
-                    "调用视觉操作，其余步骤直接读取程序状态。"
-                ),
-            )
-        ]
+    angle_set = _angle_set(
+        _angle(
+            label="少看屏幕",
+            thesis=(
+                "长程任务不必每一步都看截图；StateAct 只在 1.1% 的步骤里"
+                "调用视觉操作，其余步骤直接读取程序状态。"
+            ),
+        )
     )
 
     _validate_angle_set(
@@ -760,13 +774,11 @@ def test_angle_allows_a_technical_term_that_can_be_explained_in_prose() -> None:
 
 
 def test_angle_rejects_stale_benchmark_as_current_frontier() -> None:
-    angle_set = WritingAngleSet(
-        angles=[
-            _angle(
-                label="超越闭源前沿",
-                thesis="AREX 在项目表格里超过 GPT-5.4，说明它已经超越闭源前沿。",
-            )
-        ]
+    angle_set = _angle_set(
+        _angle(
+            label="超越闭源前沿",
+            thesis="AREX 在项目表格里超过 GPT-5.4，说明它已经超越闭源前沿。",
+        )
     )
 
     try:
@@ -781,10 +793,8 @@ def test_angle_rejects_stale_benchmark_as_current_frontier() -> None:
 
 
 def test_angle_rejects_model_version_missing_from_original_source() -> None:
-    angle_set = WritingAngleSet(
-        angles=[
-            _angle(thesis="AREX 在项目方的测试表中超过了 GPT-5.6。")
-        ]
+    angle_set = _angle_set(
+        _angle(thesis="AREX 在项目方的测试表中超过了 GPT-5.6。")
     )
 
     try:

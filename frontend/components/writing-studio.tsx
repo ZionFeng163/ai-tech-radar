@@ -234,7 +234,7 @@ export function WritingStudio({ article }: { article: ArticleDetail }) {
             ))}
           </div>
         ) : (
-          <p className="studio-empty">模型会根据资料完整度提出一到三个角度；资料很薄时只给一个有依据的方向。</p>
+          <p className="studio-empty">模型会提出三个不同方向；资料较薄时三个角度会共享同一条严格事实边界，不会为了凑数补写新事实。</p>
         )}
       </section>
 
