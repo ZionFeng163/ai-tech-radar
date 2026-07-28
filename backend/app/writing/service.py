@@ -417,7 +417,6 @@ def _validate_angle_set(
         "已验证发现",
         "被拒候选项",
         "未决约束",
-        "长程任务",
         "高鲁棒性",
         "关键工程细节",
         "Research Agent",

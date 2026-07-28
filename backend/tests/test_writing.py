@@ -424,6 +424,28 @@ def test_angle_rejects_internal_interface_language_in_public_fields() -> None:
         raise AssertionError("internal state vocabulary must be translated for readers")
 
 
+def test_angle_allows_a_technical_term_that_can_be_explained_in_prose() -> None:
+    angle_set = WritingAngleSet(
+        angles=[
+            _angle(
+                label="少看屏幕",
+                thesis=(
+                    "长程任务不必每一步都看截图；StateAct 只在 1.1% 的步骤里"
+                    "调用视觉操作，其余步骤直接读取程序状态。"
+                ),
+            )
+        ]
+    )
+
+    _validate_angle_set(
+        angle_set,
+        {
+            "title": "StateAct",
+            "source_excerpt": "Only 1.1% of main-agent steps use the GUI subagent.",
+        },
+    )
+
+
 def test_angle_rejects_stale_benchmark_as_current_frontier() -> None:
     angle_set = WritingAngleSet(
         angles=[
