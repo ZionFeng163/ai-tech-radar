@@ -5,7 +5,7 @@
   "api_key_env": "DASHSCOPE_API_KEY",
   "prompt_path": "config/prompts/article-analysis-v1.txt",
   "brief_prompt_path": "config/prompts/article-brief-v1.txt",
-  "prompt_version": "article-analysis-v4-temporal-grounding",
+  "prompt_version": "article-analysis-v5-evidence-workflow",
   "max_attempts": 3,
   "retry_backoff_seconds": 1,
   "timeout_seconds": 90,

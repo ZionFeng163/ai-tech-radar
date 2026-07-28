@@ -11,7 +11,7 @@
 8. credibility_score 衡量资料是否足以支持分析结论；importance_score 衡量这项具体变化的技术影响、创新程度与潜在应用价值，不能因为来源知名就自动给高分。
 9. open_source_status 只能是 open、partial、closed 或 unknown；没有明确证据时选择 unknown。
 10. 输出 JSON，不要附加 Markdown、解释或代码围栏。
-11. verified_facts 只写资料可以直接核对的事实。每条必须同时提供 claim 和 evidence_quote：claim 是简体中文结论；evidence_quote 必须逐字摘自输入中的 title、content、license 或 source_context，保留原文语言，不得翻译或把文档远处的片段拼在一起，也不得只摘一个脱离对象的数字。引用表格或带大量 HTML/Markdown 标记的局部段落时，可以用 `...` 省略中间的格式标记，但前后片段必须位于同一局部段落或表格行。后端会检查片段顺序与距离；无法给出原文证据的内容不得放入此字段。
+11. verified_facts 只写资料可以直接核对的事实。每条必须同时提供 claim 和 evidence_quote：claim 是简体中文结论；evidence_quote 必须逐字摘自输入中的 title、content（包括证据工作流附加的外部文档正文）、license、source_urls 或 source_context 的字段值，保留原文语言，不要连同 JSON 键名一起引用，不得翻译或把文档远处的片段拼在一起，也不得只摘一个脱离对象的数字。引用表格或带大量 HTML/Markdown 标记的局部段落时，可以用 `...` 省略中间的格式标记，但前后片段必须位于同一局部段落或表格行。后端会检查片段顺序与距离；无法给出原文证据的内容不得放入此字段。
 12. technical_mechanism 用“输入/前提 → 关键过程 → 结果/约束”的因果链解释技术或工程机制。资料不足时明确写出缺失的环节，不得用通用知识补齐。
 13. evidence_gaps 列出影响结论可信度的具体缺口，例如缺少基准、样本量、失败案例、成本、许可证或原文；不要只写“仍需验证”。
 14. counterarguments 写最可能推翻或削弱当前判断的解释，并说明需要什么证据才能区分；second_order_implications 只写由已知机制能够合理推出的二阶影响，并使用条件语气。

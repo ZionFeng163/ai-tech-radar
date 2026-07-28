@@ -1,7 +1,7 @@
 import asyncio
 import json
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 from pydantic import ValidationError
@@ -153,6 +153,14 @@ def test_evidence_quote_uses_nearby_duplicate_instead_of_first_distant_match() -
     )
 
     assert _evidence_quote_found("AREX-Base ... 85.9", corpus)
+
+
+def test_evidence_quote_ignores_json_field_wrappers() -> None:
+    corpus = _normalize_evidence(
+        json.dumps({"title": "Kimi-K3 Technical Report [pdf]"})
+    )
+
+    assert _evidence_quote_found('title: "Kimi-K3 Technical Report [pdf]"', corpus)
 
 
 def test_analysis_rejects_historical_benchmark_as_current_frontier() -> None:
@@ -401,7 +409,11 @@ def test_pipeline_retries_invalid_output_and_retains_raw_attempt(monkeypatch) ->
     request = _request()
     failed: list[tuple[str | None, str]] = []
     completed: list[str] = []
-    monkeypatch.setattr(pipeline, "_build_request", lambda article_id: request)
+    async def build_request(article_id: UUID) -> LLMRequest:
+        del article_id
+        return request
+
+    monkeypatch.setattr(pipeline, "_build_request", build_request)
     monkeypatch.setattr(pipeline, "_start_attempt", lambda article_id, value, attempt: uuid4())
     monkeypatch.setattr(
         pipeline,

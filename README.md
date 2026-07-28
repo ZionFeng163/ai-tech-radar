@@ -164,7 +164,10 @@ docker compose exec backend python -m app.cli analyze \
 ```
 
 百炼密钥通过 `DASHSCOPE_API_KEY` 注入；Prompt、模型、重试、原始响应审计和 50 条人工
-评测集的说明见 [`backend/docs/ai-analysis.md`](backend/docs/ai-analysis.md)。
+评测集的说明见 [`backend/docs/ai-analysis.md`](backend/docs/ai-analysis.md)。深度分析会先运行
+统一证据研究工作流，从 PDF、HTML、JSON 或纯文本补齐可引用资料；工具边界、失败状态和
+后续 Agent 化条件见
+[`backend/docs/evidence-research-workflow.md`](backend/docs/evidence-research-workflow.md)。
 
 ## 资讯查询 API
 
