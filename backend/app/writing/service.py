@@ -553,6 +553,7 @@ def _validate_angle_set(
         "超越闭源",
     )
     report_markers = ("学习如何", "掌握构建", "认识到", "重新评估")
+    culture_markers = ("马卡龙",)
 
     for angle in angle_set.angles:
         public_text = "\n".join(
@@ -575,6 +576,13 @@ def _validate_angle_set(
             raise ValueError(
                 f"角度“{angle.label}”的读者收益写成了课程目标："
                 + "、".join(found_report)
+            )
+        found_culture = [marker for marker in culture_markers if marker in public_text]
+        if found_culture:
+            raise ValueError(
+                f"角度“{angle.label}”使用了不必要的外国文化例子："
+                + "、".join(found_culture)
+                + "。请保留事实关系，改成中文读者无需背景知识的普通类别"
             )
         found_stale = [marker for marker in stale_markers if marker in public_text]
         if found_stale:
@@ -693,6 +701,7 @@ def _validate_draft_format(
         "问题不在存储",
         "这说明当前记忆系统",
         "主流记忆系统",
+        "马卡龙",
         "**",
     )
     if output_format == "short_post" and short_post_max <= 280:
