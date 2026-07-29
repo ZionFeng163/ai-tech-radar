@@ -31,7 +31,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-max-2026-05-20"
-    assert config.prompt_version == "writing-studio-v10-topic-first"
+    assert config.prompt_version == "writing-studio-v11-human-tech-notes"
     assert config.max_output_tokens > 2_000
 
 
@@ -238,6 +238,37 @@ def test_reference_style_rejects_abstract_ai_diagnosis() -> None:
         assert "模板化表达" in str(exc)
     else:
         raise AssertionError("abstract AI diagnosis must trigger a rewrite")
+
+
+def test_inmind_regression_rejects_paper_review_voice() -> None:
+    bad_draft = (
+        "InMind 基准测试显示，六种主流 Agent 记忆系统的准确率骤降。"
+        "问题不在存储。诊断探针证实故障出在检索路由机制。"
+        "资料未说明被测主流记忆系统的具体配置，因此这可能不是架构极限。"
+    )
+
+    try:
+        _validate_draft_format(bad_draft, "short_post")
+    except ValueError as exc:
+        assert "模板化表达" in str(exc)
+        assert "诊断探针" in str(exc)
+        assert "检索路由机制" in str(exc)
+        assert "问题不在存储" in str(exc)
+        assert "主流记忆系统" in str(exc)
+    else:
+        raise AssertionError("paper-review language must be rewritten for public readers")
+
+
+def test_inmind_regression_accepts_concrete_reader_first_explanation() -> None:
+    natural_draft = (
+        "Agent 明明记得你对坚果过敏，看到马卡龙食谱时却想不起这件事。"
+        "\n\nInMind 测的就是这种“记过，但不会用”的情况：把关键记忆直接交给"
+        "模型时能答对 84%，让六套系统自己找时最高只剩 14.4%。"
+        "\n\n它们找旧记忆时太依赖字面相似。把向量维度扩大八倍，召回率变好了，"
+        "最终回答却没有跟着变好。"
+    )
+
+    _validate_draft_format(natural_draft, "short_post")
 
 
 def test_writing_rejects_platform_rank_and_engagement_metadata() -> None:
@@ -785,6 +816,34 @@ def test_angle_allows_a_technical_term_that_can_be_explained_in_prose() -> None:
             "source_excerpt": "Only 1.1% of main-agent steps use the GUI subagent.",
         },
     )
+
+
+def test_angle_rejects_inmind_paper_abstract_as_public_thesis() -> None:
+    angle_set = _angle_set(
+        _angle(
+            label="隐式关联盲点",
+            thesis=(
+                "InMind 基准测试显示，Agent 记忆系统的故障根源在于"
+                "检索路由接口，而不是存储容量。"
+            ),
+        )
+    )
+
+    try:
+        _validate_angle_set(
+            angle_set,
+            {
+                "title": "Keep It InMind",
+                "source_excerpt": (
+                    "InMind evaluates implicit associations in memory retrieval."
+                ),
+            },
+        )
+    except ValueError as exc:
+        assert "研究报告" in str(exc)
+        assert "基准测试显示" in str(exc)
+    else:
+        raise AssertionError("public angle must start from a concrete reader-facing idea")
 
 
 def test_angle_rejects_stale_benchmark_as_current_frontier() -> None:

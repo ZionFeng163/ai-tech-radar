@@ -3,7 +3,7 @@
   "model": "qwen3.7-max-2026-05-20",
   "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
   "api_key_env": "DASHSCOPE_API_KEY",
-  "prompt_version": "writing-studio-v10-topic-first",
+  "prompt_version": "writing-studio-v11-human-tech-notes",
   "angle_prompt_path": "config/prompts/writing-angles-v1.txt",
   "draft_prompt_path": "config/prompts/writing-draft-v1.txt",
   "review_prompt_path": "config/prompts/writing-review-v1.txt",
