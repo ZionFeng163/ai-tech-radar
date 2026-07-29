@@ -31,7 +31,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-max-2026-05-20"
-    assert config.prompt_version == "writing-studio-v12-zh-cultural-context"
+    assert config.prompt_version == "writing-studio-v13-native-spoken-zh"
     assert config.max_output_tokens > 2_000
 
 
@@ -242,8 +242,10 @@ def test_reference_style_rejects_abstract_ai_diagnosis() -> None:
 
 def test_inmind_regression_rejects_paper_review_voice() -> None:
     bad_draft = (
-        "InMind 基准测试显示，六种主流 Agent 记忆系统推荐马卡龙时准确率骤降。"
-        "问题不在存储。诊断探针证实故障出在检索路由机制。"
+        "InMind 基准测试显示，六种主流 Agent 记忆系统遇到坚果过敏、"
+        "推荐马卡龙时准确率骤降。"
+        "问题不在存储。诊断探针证实故障出在检索路由机制和检索接口，"
+        "但目标召回率和按需直接召回表现正常。"
         "资料未说明被测主流记忆系统的具体配置，因此这可能不是架构极限。"
     )
 
@@ -256,13 +258,17 @@ def test_inmind_regression_rejects_paper_review_voice() -> None:
         assert "问题不在存储" in str(exc)
         assert "主流记忆系统" in str(exc)
         assert "马卡龙" in str(exc)
+        assert "坚果过敏" in str(exc)
+        assert "按需直接召回" in str(exc)
+        assert "目标召回率" in str(exc)
+        assert "检索接口" in str(exc)
     else:
         raise AssertionError("paper-review language must be rewritten for public readers")
 
 
 def test_inmind_regression_accepts_concrete_reader_first_explanation() -> None:
     natural_draft = (
-        "Agent 明明记得你对坚果过敏，推荐含坚果原料的食物时却想不起这件事。"
+        "Agent 明明记得用户有忌口，推荐吃什么时却没用上这条信息。"
         "\n\nInMind 测的就是这种“记过，但不会用”的情况：把关键记忆直接交给"
         "模型时能答对 84%，让六套系统自己找时最高只剩 14.4%。"
         "\n\n它们找旧记忆时太依赖字面相似。把向量维度扩大八倍，召回率变好了，"
@@ -851,7 +857,7 @@ def test_angle_rejects_unnecessary_foreign_cultural_example() -> None:
     angle_set = _angle_set(
         _angle(
             label="记得却没用上",
-            thesis="系统知道用户坚果过敏，推荐马卡龙时却没调用这条记忆。",
+            thesis="系统知道用户有坚果过敏，推荐马卡龙时却没调用这条记忆。",
         )
     )
 

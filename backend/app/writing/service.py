@@ -553,7 +553,7 @@ def _validate_angle_set(
         "超越闭源",
     )
     report_markers = ("学习如何", "掌握构建", "认识到", "重新评估")
-    culture_markers = ("马卡龙",)
+    culture_markers = ("马卡龙", "坚果过敏", "含坚果")
 
     for angle in angle_set.angles:
         public_text = "\n".join(
@@ -702,6 +702,11 @@ def _validate_draft_format(
         "这说明当前记忆系统",
         "主流记忆系统",
         "马卡龙",
+        "坚果过敏",
+        "含坚果",
+        "按需直接召回",
+        "目标召回率",
+        "检索接口",
         "**",
     )
     if output_format == "short_post" and short_post_max <= 280:
