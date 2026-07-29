@@ -17,6 +17,7 @@ from app.writing.schema import (
 )
 from app.writing.service import (
     WritingService,
+    _reject_platform_heat,
     _validate_angle_set,
     _validate_automatic_review,
     _validate_claim_audit,
@@ -30,7 +31,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-max-2026-05-20"
-    assert config.prompt_version == "writing-studio-v9-verified-claims"
+    assert config.prompt_version == "writing-studio-v10-topic-first"
     assert config.max_output_tokens > 2_000
 
 
@@ -237,6 +238,19 @@ def test_reference_style_rejects_abstract_ai_diagnosis() -> None:
         assert "模板化表达" in str(exc)
     else:
         raise AssertionError("abstract AI diagnosis must trigger a rewrite")
+
+
+def test_writing_rejects_platform_rank_and_engagement_metadata() -> None:
+    for content in (
+        "这篇文章冲到 Hacker News 热门榜第 3 位，值得关注。",
+        "这个项目获得 1121 票和 575 条评论。",
+    ):
+        try:
+            _reject_platform_heat(content, label="正文")
+        except ValueError as exc:
+            assert "只用于选题" in str(exc)
+        else:
+            raise AssertionError("platform heat must not replace the actual topic")
 
 
 def test_short_post_rejects_excessive_jargon_density() -> None:

@@ -372,17 +372,6 @@ class WritingService:
             raise LookupError("article not found")
         content = (article.content or "").strip()
         source_quality = "metadata_only" if len(content) < 200 else "source_excerpt"
-        source_metrics = [
-            {
-                key: value
-                for key in ("source", "rank", "score", "comments", "reactions")
-                if (value := (
-                    raw.source.slug if key == "source" else raw.source_metadata.get(key)
-                ))
-                is not None
-            }
-            for raw in article.raw_items
-        ]
         generated_context_allowed = source_quality != "metadata_only"
         analysis_depth = "deep" if has_editorial_depth(article.analysis) else "brief"
         deep_analysis = article.analysis if analysis_depth == "deep" else {}
@@ -405,18 +394,16 @@ class WritingService:
                 article.technical_overview if generated_context_allowed else None
             ),
             "novelty_summary": article.novelty_summary if generated_context_allowed else None,
-            "heat_reasons": article.heat_reasons if generated_context_allowed else [],
             "analysis": deep_analysis if generated_context_allowed else {},
             "editorial_analysis": deep_analysis if not generated_context_allowed else {},
             "analysis_depth": analysis_depth,
             "source_published_at": article.published_at.isoformat(),
             "writing_generated_at": datetime.now(UTC).isoformat(),
             "source_excerpt": content[: self.config.max_input_characters],
-            "source_metrics": source_metrics,
             "source_quality": source_quality,
             "grounding_note": (
-                "只有标题和热度元数据。不得声称文章提出了哪些论点、案例或解决方案；"
-                "可以基于标题给出编辑判断，但必须写成作者自己的推断。"
+                "原始正文较薄。使用深度分析里带原文引句的已核实事实，并围绕主题写作；"
+                "不得声称来源提出了未提供的论点、案例或解决方案。"
                 if source_quality == "metadata_only"
                 else "可引用正文中能够直接找到的事实。"
             ),
@@ -562,7 +549,10 @@ def _validate_angle_set(
     report_markers = ("学习如何", "掌握构建", "认识到", "重新评估")
 
     for angle in angle_set.angles:
-        public_text = "\n".join((angle.label, angle.thesis, angle.reader_gain))
+        public_text = "\n".join(
+            (angle.label, angle.thesis, angle.reader_gain, *angle.evidence)
+        )
+        _reject_platform_heat(public_text, label=f"角度“{angle.label}”")
         if "`" in public_text or re.search(r"\b[a-z]+_[a-z_]+\b", public_text):
             raise ValueError(
                 f"角度“{angle.label}”把接口名或代码写法直接放进了观点，"
@@ -603,6 +593,7 @@ def _validate_draft_format(
 ) -> None:
     if not content:
         raise ValueError("草稿为空")
+    _reject_platform_heat(content, label="正文")
     if output_format == "short_post" and len(content) < short_post_min:
         raise ValueError(f"观点推文只有 {len(content)} 个字符，少于 {short_post_min}")
     if output_format == "short_post" and len(content) > short_post_max:
@@ -761,6 +752,26 @@ def _validate_automatic_review(review: WritingReview) -> None:
             for issue in blocking[:3]
         )
         raise ValueError(f"自动审校发现阻断问题：{details}")
+
+
+def _reject_platform_heat(content: str, *, label: str) -> None:
+    patterns = (
+        r"Hacker\s*News.{0,24}(?:热门榜|第\s*\d+\s*位|票|评论)",
+        r"(?:热门榜|热榜).{0,12}第\s*\d+\s*位",
+        r"\d[\d,]*\s*票",
+        r"\d[\d,]*\s*条评论",
+    )
+    matched = [
+        match.group(0)
+        for pattern in patterns
+        if (match := re.search(pattern, content, re.IGNORECASE))
+    ]
+    if matched:
+        raise ValueError(
+            f"{label}把平台排名或互动数字写进了内容："
+            + "、".join(matched)
+            + "。这些数据只用于选题，不属于主题正文"
+        )
 
 
 def _validate_claim_audit(
