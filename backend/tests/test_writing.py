@@ -17,11 +17,15 @@ from app.writing.schema import (
 )
 from app.writing.service import (
     WritingService,
+    _build_evidence_catalog,
+    _canonicalize_audit_evidence,
+    _contribution_type,
     _reject_platform_heat,
     _validate_angle_set,
     _validate_automatic_review,
     _validate_claim_audit,
     _validate_draft_format,
+    _validate_subject_anchor,
     _writing_style_profile,
 )
 
@@ -31,7 +35,7 @@ def test_writing_config_uses_separate_qwen_pipeline() -> None:
 
     assert config.provider == "bailian"
     assert config.model == "qwen3.7-max-2026-05-20"
-    assert config.prompt_version == "writing-studio-v13-native-spoken-zh"
+    assert config.prompt_version == "writing-studio-v15-contribution-first"
     assert config.max_output_tokens > 2_000
 
 
@@ -276,6 +280,130 @@ def test_inmind_regression_accepts_concrete_reader_first_explanation() -> None:
     )
 
     _validate_draft_format(natural_draft, "short_post")
+
+
+def test_paper_post_requires_author_artifact_and_action() -> None:
+    source_pack = {
+        "kind": "paper",
+        "authors": ["Ruizhe Li", "Benfeng Xu"],
+    }
+
+    try:
+        _validate_subject_anchor(
+            "系统明明记得用户有忌口，推荐吃什么时却没用上。",
+            source_pack,
+        )
+    except ValueError as exc:
+        assert "研究者是谁" in str(exc)
+    else:
+        raise AssertionError("paper posts must identify at least one source author")
+
+    _validate_subject_anchor(
+        (
+            "Ruizhe Li 等人做了 InMind 这套测试，专门看 Agent 记住的信息，"
+            "真正用起来时还能不能想得起来。"
+        ),
+        source_pack,
+    )
+
+    try:
+        _validate_subject_anchor(
+            (
+                "Agent 明明记得用户有忌口，回答时却没用上。"
+                "换个问法后，旧信息就像不存在。"
+                "Ruizhe Li 等人在后文做了 InMind 这套测试。"
+            ),
+            source_pack,
+        )
+    except ValueError as exc:
+        assert "开头两句" in str(exc)
+    else:
+        raise AssertionError("paper identity must appear in the opening")
+
+
+def test_benchmark_paper_is_classified_and_requires_testing_language() -> None:
+    assert (
+        _contribution_type(
+            "paper",
+            title="Keep It InMind: Benchmarking the Implicit-Association Blind Spot",
+        )
+        == "benchmark_or_evaluation"
+    )
+    assert (
+        _contribution_type("paper", title="A New Memory Architecture")
+        == "research_work"
+    )
+
+    source_pack = {
+        "kind": "paper",
+        "contribution_type": "benchmark_or_evaluation",
+        "authors": ["Ruizhe Li"],
+    }
+    try:
+        _validate_subject_anchor(
+            "Ruizhe Li 等人提出了 InMind 这套研究，用来解决 Agent 记忆问题。",
+            source_pack,
+        )
+    except ValueError as exc:
+        assert "基准或评测" in str(exc)
+    else:
+        raise AssertionError("benchmark papers must say what they tested or found")
+
+
+def test_evidence_catalog_includes_article_identity_metadata() -> None:
+    catalog = _build_evidence_catalog(
+        {
+            "title": "Keep It InMind",
+            "kind": "paper",
+            "contribution_type": "benchmark_or_evaluation",
+            "authors": ["Ruizhe Li", "Benfeng Xu"],
+            "source_names": ["Hugging Face Daily Papers"],
+            "source_excerpt": "We introduce InMind.",
+        }
+    )
+
+    evidence = "\n".join(catalog.values())
+    assert (
+        "Article identity: title=Keep It InMind; "
+        "authors=Ruizhe Li, Benfeng Xu; artifact_kind=paper; "
+        "contribution_type=benchmark_or_evaluation"
+    ) in evidence
+    assert "Title: Keep It InMind" in evidence
+    assert "Artifact kind: paper" in evidence
+    assert "Contribution type: benchmark_or_evaluation" in evidence
+    assert "Authors: Ruizhe Li, Benfeng Xu" in evidence
+    assert "Sources: Hugging Face Daily Papers" in evidence
+
+
+def test_evidence_catalog_pairs_verified_claim_with_source_quote() -> None:
+    catalog = _build_evidence_catalog(
+        {
+            "analysis": {
+                "verified_facts": [
+                    {
+                        "claim": "系统能直接找回同一条信息。",
+                        "evidence_quote": "They recall the same facts on demand.",
+                    }
+                ]
+            }
+        }
+    )
+
+    assert any(
+        value
+        == (
+            "Verified claim: 系统能直接找回同一条信息。 | "
+            "Source quote: They recall the same facts on demand."
+        )
+        for value in catalog.values()
+    )
+
+
+def test_non_paper_post_does_not_require_academic_author_anchor() -> None:
+    _validate_subject_anchor(
+        "这个开源工具把部署步骤缩短了。",
+        {"kind": "code_repository", "authors": []},
+    )
 
 
 def test_writing_rejects_platform_rank_and_engagement_metadata() -> None:
@@ -695,6 +823,40 @@ def test_claim_audit_rejects_new_version_or_untraceable_quote() -> None:
         assert "缺少可追溯" in str(exc)
     else:
         raise AssertionError("a model version absent from evidence must be rejected")
+
+
+def test_claim_audit_canonicalizes_paraphrased_quote_from_valid_evidence_id() -> None:
+    content = "信息已经存下，回答相关问题时却没有被拿出来。"
+    source_pack = {
+        "source_excerpt": (
+            "The paired controls show that the fact was stored but never surfaced."
+        )
+    }
+    catalog = _build_evidence_catalog(source_pack)
+    evidence_id = next(
+        key for key, value in catalog.items() if "stored but never surfaced" in value
+    )
+    audit = ClaimAudit(
+        publishable=True,
+        summary="可以发布。",
+        claims=[
+            {
+                "claim": content,
+                "kind": "fact",
+                "support_status": "supported",
+                "risk": "low",
+                "evidence_quote": "信息已经存下，但回答时没被拿出来。",
+                "evidence_location": evidence_id,
+                "reason": "是原文事实关系的中文转述。",
+            }
+        ],
+        review=_publishable_review(),
+    )
+
+    _canonicalize_audit_evidence(audit, source_pack)
+    _validate_claim_audit(audit, source_pack, content)
+
+    assert "stored but never surfaced" in audit.claims[0].evidence_quote
 
 
 def test_claim_audit_rejects_numbers_omitted_from_ledger() -> None:

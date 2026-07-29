@@ -164,6 +164,7 @@ class WritingService:
                         short_post_max=280 if metadata_only else 360,
                         short_post_paragraphs=3 if metadata_only else 5,
                     )
+                    _validate_subject_anchor(draft, source_pack)
                 except (ValidationError, ValueError) as exc:
                     if attempt == 3:
                         raise
@@ -255,10 +256,12 @@ class WritingService:
                         3 if source_pack["source_quality"] == "metadata_only" else 5
                     ),
                 )
+                _validate_subject_anchor(verified.final_content, source_pack)
                 audit = await self._audit_final_content(
                     request_pack=request_pack,
                     final_content=verified.final_content,
                 )
+                _canonicalize_audit_evidence(audit, source_pack)
                 _validate_review_links(audit.review, verified.final_content)
                 _validate_claim_audit(audit, source_pack, verified.final_content)
                 _validate_automatic_review(audit.review)
@@ -347,6 +350,18 @@ class WritingService:
                 "短帖没有使用 evidence_catalog 里的其他事实不算遗漏，也不得建议"
                 "为了完整而补充另一组模型或指标。review 的每条 issue.quote 必须"
                 "逐字存在于 final_content，不能批评已经删掉的原稿句子。"
+                "evidence_catalog 中以 Article identity、Title、Authors、"
+                "Artifact kind、Contribution type、Sources 开头的条目是文章身份元数据，"
+                "可直接支持作者、标题、成果类型和"
+                "来源归因；不要因这些信息不在正文摘要段落中而判为 unsupported。"
+                "以 Verified claim 开头的条目把已经逐字核对过的中文事实与原文"
+                "引句放在一起，可直接支持语义等价的中文白话。"
+                "语义核对看事实关系，不做逐词翻译：来源中的 stored but never "
+                "surfaced 可以直接支持“信息已经存下，回答时却没被找出来”；"
+                "implicit-association benchmark 可以直接支持“测试换个问法后还能否"
+                "用上旧信息”；deciding which facts must stay visible 可以直接支持"
+                "“系统挑选该拿出哪些旧信息的那一步”。不得把这些准确白话误判为"
+                " unsupported。"
                 "只输出 JSON："
                 "publishable、summary、claims、review。每条 claim 包含 claim、kind、"
                 "support_status、risk、evidence_quote、evidence_location、reason。"
@@ -365,7 +380,10 @@ class WritingService:
     def _source_pack(self, session: Session, article_id: UUID) -> dict[str, object]:
         article = session.scalar(
             select(Article)
-            .options(selectinload(Article.raw_items).selectinload(RawItem.source))
+            .options(
+                selectinload(Article.raw_items).selectinload(RawItem.source),
+                selectinload(Article.authors),
+            )
             .where(Article.id == article_id)
         )
         if article is None:
@@ -375,6 +393,10 @@ class WritingService:
         generated_context_allowed = source_quality != "metadata_only"
         analysis_depth = "deep" if has_editorial_depth(article.analysis) else "brief"
         deep_analysis = article.analysis if analysis_depth == "deep" else {}
+        contribution_type = _contribution_type(
+            article.kind.value,
+            title=article.title,
+        )
         source_urls = list(
             dict.fromkeys(
                 ([article.canonical_url] if article.canonical_url else [])
@@ -384,6 +406,11 @@ class WritingService:
         return {
             "title": article.title,
             "kind": article.kind.value,
+            "contribution_type": contribution_type,
+            "authors": [author.name for author in article.authors],
+            "source_names": list(
+                dict.fromkeys(raw.source.name for raw in article.raw_items)
+            ),
             "writing_style_profile": _writing_style_profile(
                 article.kind.value,
                 source_quality=source_quality,
@@ -512,6 +539,90 @@ def _writing_style_profile(
     if source_quality == "source_excerpt":
         return "technical_reading_notes"
     return "technical_findings"
+
+
+def _contribution_type(kind: str, *, title: str) -> str:
+    """Give the writer a conservative artifact role without inventing a result."""
+
+    if kind != "paper":
+        return kind
+    folded_title = title.casefold()
+    if any(
+        marker in folded_title
+        for marker in ("benchmark", "benchmarking", "evaluation", "基准", "评测")
+    ):
+        return "benchmark_or_evaluation"
+    return "research_work"
+
+
+def _validate_subject_anchor(
+    content: str, source_pack: Mapping[str, object]
+) -> None:
+    """A paper post must identify who did what before discussing its result."""
+
+    if source_pack.get("kind") != "paper":
+        return
+    raw_authors = source_pack.get("authors")
+    authors = (
+        [
+            str(author).strip()
+            for author in raw_authors
+            if str(author).strip()
+        ]
+        if isinstance(raw_authors, list)
+        else []
+    )
+    opening_sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[。！？!?])|\n+", content)
+        if sentence.strip()
+    ][:2]
+    opening = " ".join(opening_sentences)
+    folded_opening = opening.casefold()
+    if authors and not any(
+        author.casefold() in folded_opening for author in authors
+    ):
+        raise ValueError(
+            "论文开头两句没有交代研究者是谁。请先自然写出至少一位资料中的作者，"
+            "并说明他们做了什么"
+        )
+    artifact_markers = (
+        "论文",
+        "研究",
+        "测试",
+        "基准",
+        "模型",
+        "方法",
+        "框架",
+        "系统",
+        "工具",
+        "数据集",
+    )
+    action_markers = (
+        "提出",
+        "发布",
+        "推出",
+        "做了",
+        "构建",
+        "开发",
+        "测试",
+        "研究",
+        "发现",
+        "开源",
+    )
+    if not any(marker in opening for marker in artifact_markers):
+        raise ValueError(
+            "论文开头两句没有说明成果究竟是论文、测试、模型、方法、框架还是工具"
+        )
+    if not any(marker in opening for marker in action_markers):
+        raise ValueError("论文开头两句没有说明研究者具体做了什么或发现了什么")
+    if source_pack.get("contribution_type") == "benchmark_or_evaluation":
+        benchmark_markers = ("基准", "评测", "测试", "测了", "衡量", "发现")
+        if not any(marker in opening for marker in benchmark_markers):
+            raise ValueError(
+                "这是一项基准或评测工作。开头应说明它测试或发现了什么，"
+                "不能把它写成已经解决问题的新技术"
+            )
 
 
 def _validate_angle_set(
@@ -889,6 +1000,34 @@ def _validate_claim_audit(
         )
 
 
+def _canonicalize_audit_evidence(
+    audit: ClaimAudit, source_pack: Mapping[str, object]
+) -> None:
+    """Replace paraphrased audit quotes with the exact text behind cited IDs."""
+
+    evidence_catalog = _build_evidence_catalog(source_pack)
+    for claim in audit.claims:
+        if claim.kind == "opinion":
+            continue
+        evidence_ids = [
+            item.strip()
+            for item in re.split(r"[,，、\s]+", claim.evidence_location)
+            if item.strip()
+        ]
+        if not evidence_ids or any(
+            evidence_id not in evidence_catalog for evidence_id in evidence_ids
+        ):
+            continue
+        cited_evidence = " ".join(
+            evidence_catalog[evidence_id] for evidence_id in evidence_ids
+        )
+        normalized_quote = _normalize_evidence(claim.evidence_quote)
+        if len(normalized_quote) < 4 or normalized_quote not in _normalize_evidence(
+            cited_evidence
+        ):
+            claim.evidence_quote = cited_evidence[:2_000]
+
+
 def _validate_review_links(review: WritingReview, final_content: str) -> None:
     """Prevent an editor from blocking on omitted facts or an earlier draft."""
 
@@ -918,6 +1057,44 @@ def _build_evidence_catalog(source_pack: object) -> dict[str, str]:
 
     candidates: list[str] = []
     if isinstance(source_pack, Mapping):
+        title = source_pack.get("title")
+        authors = source_pack.get("authors")
+        author_names = (
+            [str(author).strip() for author in authors if str(author).strip()]
+            if isinstance(authors, list)
+            else []
+        )
+        kind = source_pack.get("kind")
+        contribution_type = source_pack.get("contribution_type")
+        identity_parts: list[str] = []
+        if isinstance(title, str) and title.strip():
+            identity_parts.append(f"title={title.strip()}")
+        if author_names:
+            identity_parts.append("authors=" + ", ".join(author_names))
+        if isinstance(kind, str) and kind.strip():
+            identity_parts.append(f"artifact_kind={kind.strip()}")
+        if isinstance(contribution_type, str) and contribution_type.strip():
+            identity_parts.append(
+                f"contribution_type={contribution_type.strip()}"
+            )
+        if identity_parts:
+            candidates.append("Article identity: " + "; ".join(identity_parts))
+        if isinstance(title, str) and title.strip():
+            candidates.append(f"Title: {title.strip()}")
+        if isinstance(kind, str) and kind.strip():
+            candidates.append(f"Artifact kind: {kind.strip()}")
+        if isinstance(contribution_type, str) and contribution_type.strip():
+            candidates.append(
+                f"Contribution type: {contribution_type.strip()}"
+            )
+        if author_names:
+            candidates.append("Authors: " + ", ".join(author_names))
+        source_names = source_pack.get("source_names")
+        if isinstance(source_names, list):
+            names = [str(name).strip() for name in source_names if str(name).strip()]
+            if names:
+                candidates.append("Sources: " + ", ".join(names))
+        candidates.extend(_named_verified_claims(source_pack))
         candidates.extend(_named_evidence_quotes(source_pack))
         source_excerpt = source_pack.get("source_excerpt")
         if isinstance(source_excerpt, str):
@@ -950,6 +1127,34 @@ def _named_evidence_quotes(value: object) -> list[str]:
             quote
             for child in value
             for quote in _named_evidence_quotes(child)
+        ]
+    return []
+
+
+def _named_verified_claims(value: object) -> list[str]:
+    """Keep a verified Chinese claim next to the original quote for auditing."""
+
+    if isinstance(value, Mapping):
+        result: list[str] = []
+        claim = value.get("claim")
+        quote = value.get("evidence_quote")
+        if (
+            isinstance(claim, str)
+            and claim.strip()
+            and isinstance(quote, str)
+            and quote.strip()
+        ):
+            result.append(
+                f"Verified claim: {claim.strip()} | Source quote: {quote.strip()}"
+            )
+        for child in value.values():
+            result.extend(_named_verified_claims(child))
+        return result
+    if isinstance(value, list):
+        return [
+            claim
+            for child in value
+            for claim in _named_verified_claims(child)
         ]
     return []
 
