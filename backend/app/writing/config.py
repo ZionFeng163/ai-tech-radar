@@ -10,7 +10,7 @@ class WritingConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     provider: str = "bailian"
-    model: str = "qwen3.7-max-2026-05-20"
+    model: str = "qwen3.7-max-preview"
     api_base: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     api_key_env: str = "DASHSCOPE_API_KEY"
     prompt_version: str = "writing-studio-v1"

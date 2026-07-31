@@ -1,6 +1,6 @@
 {
   "provider": "bailian",
-  "model": "qwen3.7-max-2026-05-20",
+  "model": "qwen3.7-max-preview",
   "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
   "api_key_env": "DASHSCOPE_API_KEY",
   "prompt_version": "writing-studio-v15-contribution-first",

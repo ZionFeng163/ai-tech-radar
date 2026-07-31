@@ -78,7 +78,7 @@ def test_default_production_config_uses_bailian_qwen() -> None:
     config = AnalysisConfig.from_file(DEFAULT_ANALYSIS_CONFIG_PATH)
 
     assert config.provider == "bailian"
-    assert config.model == "qwen3.7-max-2026-05-20"
+    assert config.model == "qwen3.7-max-preview"
     assert config.api_key_env == "DASHSCOPE_API_KEY"
     assert config.api_base == "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
