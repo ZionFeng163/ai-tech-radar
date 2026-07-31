@@ -118,7 +118,7 @@ def test_writing_provider_only_enables_json_mode_for_structured_stages(monkeypat
 
     assert "response_format" not in captured[0]
     assert captured[1]["response_format"] == {"type": "json_object"}
-    assert captured[0]["enable_thinking"] is False
+    assert captured[0]["enable_thinking"] is True
 
 
 def test_thread_format_rejects_oversized_or_wrong_post_count() -> None:

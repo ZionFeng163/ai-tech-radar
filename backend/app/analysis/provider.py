@@ -177,7 +177,7 @@ class BailianChatProvider:
                 {"role": "user", "content": request.user_prompt + schema_instruction},
             ],
             "response_format": {"type": "json_object"},
-            "enable_thinking": False,
+            "enable_thinking": self.model.endswith("-preview"),
             "max_tokens": self._max_output_tokens,
         }
         owns_client = self._client is None

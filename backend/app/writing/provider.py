@@ -58,7 +58,7 @@ class BailianWritingProvider:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "enable_thinking": False,
+            "enable_thinking": self.model.endswith("-preview"),
             "max_tokens": self._max_output_tokens,
         }
         if json_schema is not None:

@@ -350,6 +350,36 @@ def test_bailian_provider_uses_json_mode_without_thinking(monkeypatch) -> None:
     assert "bailian_test" in response.raw_response
 
 
+def test_bailian_preview_model_enables_required_thinking(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"role": "assistant", "content": _valid_output().model_dump_json()}}
+                ]
+            },
+        )
+
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = BailianChatProvider(
+        AnalysisConfig(
+            provider="bailian",
+            model="qwen3.7-max-preview",
+            api_key_env="DASHSCOPE_API_KEY",
+        ),
+        client=client,
+    )
+    asyncio.run(provider.analyze(_request()))
+    asyncio.run(client.aclose())
+
+    assert captured["enable_thinking"] is True
+
+
 def test_bailian_provider_surfaces_quota_error_code(monkeypatch) -> None:
     monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
     client = httpx.AsyncClient(

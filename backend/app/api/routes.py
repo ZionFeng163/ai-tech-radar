@@ -390,6 +390,7 @@ def _analysis_job_status(
             article_id=article_id,
             status="complete",
             analysis_depth="deep",
+            error_summary=None,
         )
     latest = session.scalar(
         select(AnalysisRun)
@@ -412,6 +413,7 @@ def _analysis_job_status(
         article_id=article_id,
         status=job_status,
         analysis_depth="brief",
+        error_summary=latest.error_summary if latest is not None else None,
     )
 
 

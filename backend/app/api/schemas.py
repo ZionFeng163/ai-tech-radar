@@ -70,6 +70,7 @@ class AnalysisJobStatus(BaseModel):
     article_id: UUID
     status: Literal["idle", "queued", "running", "complete", "failed"]
     analysis_depth: Literal["brief", "deep"]
+    error_summary: str | None = None
 
 
 class WritingDraftRequest(BaseModel):

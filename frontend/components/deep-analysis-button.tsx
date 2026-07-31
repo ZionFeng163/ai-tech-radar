@@ -5,6 +5,7 @@ import { useState } from "react";
 
 interface AnalysisJobStatus {
   status: "idle" | "queued" | "running" | "complete" | "failed";
+  error_summary?: string | null;
 }
 
 const POLL_INTERVAL_MS = 1_200;
@@ -19,9 +20,11 @@ export function DeepAnalysisButton({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function generate() {
     setStatus("loading");
+    setErrorMessage("");
     try {
       const response = await fetch(`/api/articles/${encodeURIComponent(articleId)}/deep-analysis`, {
         method: "POST",
@@ -44,11 +47,14 @@ export function DeepAnalysisButton({
           router.refresh();
           return;
         }
-        if (job.status === "failed") throw new Error("analysis failed");
+        if (job.status === "failed") {
+          throw new Error(job.error_summary || "深度分析失败");
+        }
       }
       throw new Error("analysis timed out");
-    } catch {
+    } catch (reason) {
       setStatus("error");
+      setErrorMessage(reason instanceof Error ? reason.message : "深度分析失败");
     }
   }
 
@@ -58,7 +64,7 @@ export function DeepAnalysisButton({
         <button className="secondary-button" disabled={status === "loading"} onClick={generate}>
           {status === "loading" ? "正在生成深度分析…" : "先补一份深度分析"}
         </button>
-        {status === "error" ? <p className="deep-analysis-error">生成失败，请稍后重试。</p> : null}
+        {status === "error" ? <p className="deep-analysis-error">{errorMessage || "生成失败，请稍后重试。"}</p> : null}
       </div>
     );
   }
@@ -71,7 +77,7 @@ export function DeepAnalysisButton({
       <button className="action-button" disabled={status === "loading"} onClick={generate}>
         {status === "loading" ? "后台生成中，可继续浏览…" : "生成深度分析"}
       </button>
-      {status === "error" ? <p className="deep-analysis-error">生成失败，请稍后重试。</p> : null}
+      {status === "error" ? <p className="deep-analysis-error">{errorMessage || "生成失败，请稍后重试。"}</p> : null}
     </div>
   );
 }
